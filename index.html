@@ -44,6 +44,10 @@
 <body class="min-h-screen flex flex-col text-base leading-relaxed">
     <a href="#simulators" class="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded focus:bg-slate-900 focus:px-4 focus:py-2">본문(시뮬레이터 목록)으로 건너뛰기</a>
 
+    <div role="note" class="bg-amber-500 px-4 py-2.5 text-center text-xs font-bold text-black sm:text-sm">
+        <i class="fa-solid fa-triangle-exclamation mr-1" aria-hidden="true"></i> 본 웹사이트의 모든 시뮬레이터는 과학수사 교육용 데모입니다. (DEMO ONLY - NOT FOR REAL FORENSIC USE)
+    </div>
+
     <header class="border-b" style="border-color: var(--color-border)">
         <div class="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
             <a href="index.html" class="flex items-center gap-3 font-bold" aria-current="page">
@@ -59,7 +63,7 @@
             <div class="mx-auto max-w-6xl px-6 py-16 sm:py-20">
                 <p class="mb-4 text-sm font-semibold tracking-widest" style="color: var(--color-accent)">FORENSIC SCIENCE × AI</p>
                 <h1 class="max-w-3xl text-3xl font-bold leading-tight sm:text-5xl">과학수사의 핵심 분석 기법을<br class="hidden sm:inline"> 직접 조작하며 이해하는 시뮬레이터</h1>
-                <p class="mt-5 max-w-2xl text-base sm:text-lg" style="color: var(--color-muted-foreground)">법의독성학, 법유전학, 후성유전학, 미생물 법의학, 법령 RAG까지. 7종의 인터랙티브 시뮬레이터로 AI가 감정·추론하는 과정을 단계별로 살펴보세요.</p>
+                <p class="mt-5 max-w-2xl text-base sm:text-lg" style="color: var(--color-muted-foreground)">법의독성학, 법유전학, 후성유전학, 환경 미생물 추적, 법령 RAG까지. 7종의 인터랙티브 시뮬레이터로 AI가 감정·추론하는 과정을 단계별로 살펴보세요.</p>
                 <div class="mt-8 flex flex-wrap items-center gap-6">
                     <a href="#simulators" class="cta inline-flex min-h-[44px] items-center gap-2 rounded-md px-5 font-semibold text-slate-950" style="background: var(--color-accent)">
                         시뮬레이터 둘러보기 <i class="fa-solid fa-arrow-down" aria-hidden="true"></i>
@@ -81,74 +85,74 @@
 
             <nav aria-label="시뮬레이터 목록">
                 <ul class="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-                    <li><a href="simulators/1_Forensic_Toxicological_LC_MS_AI_Decoder.html" class="sim-card group flex h-full cursor-pointer flex-col rounded-lg border p-6">
+                    <li><a href="sites/1_Forensic_Toxicological_LC_MS_AI_Decoder.html" class="sim-card group flex h-full cursor-pointer flex-col rounded-lg border p-6">
                         <div class="mb-5 flex items-center justify-between">
                             <span class="grid h-11 w-11 place-items-center rounded-md bg-indigo-500/15 text-lg text-indigo-300"><i class="fa-solid fa-flask-vial" aria-hidden="true"></i></span>
                             <span class="font-mono text-sm" style="color: var(--color-muted-foreground)">01</span>
                         </div>
                         <span class="mb-2 w-fit rounded border border-indigo-400/30 px-2 py-0.5 text-xs font-medium text-indigo-300">법의독성학</span>
-                        <h3 class="text-lg font-bold leading-snug">Toxicological LC-MS/MS AI Decoder</h3>
-                        <p class="mt-2 flex-1 text-sm" style="color: var(--color-muted-foreground)">GNN 기반으로 DB 미등록 신종유사마약(NPS)의 파편 구조를 디코딩합니다.</p>
+                        <h3 class="text-lg font-bold leading-snug">LC-MS/MS AI NPS Spectrum Decoder</h3>
+                        <p class="mt-2 flex-1 text-sm" style="color: var(--color-muted-foreground)">질량분석(LC-MS/MS) 분자 파편을 AI로 분석해 신종 유사 마약(NPS) 계열을 추정합니다.</p>
                         <span class="mt-5 inline-flex items-center gap-2 text-sm font-semibold" style="color: var(--color-primary)">시작하기 <i class="arrow fa-solid fa-arrow-right" aria-hidden="true"></i></span>
                     </a></li>
-                    <li><a href="simulators/2_Forensic_DNA_Origin_Tracker.html" class="sim-card group flex h-full cursor-pointer flex-col rounded-lg border p-6">
+                    <li><a href="sites/2_Forensic_DNA_Origin_Tracker.html" class="sim-card group flex h-full cursor-pointer flex-col rounded-lg border p-6">
                         <div class="mb-5 flex items-center justify-between">
                             <span class="grid h-11 w-11 place-items-center rounded-md bg-sky-500/15 text-lg text-sky-300"><i class="fa-solid fa-dna" aria-hidden="true"></i></span>
                             <span class="font-mono text-sm" style="color: var(--color-muted-foreground)">02</span>
                         </div>
-                        <span class="mb-2 w-fit rounded border border-sky-400/30 px-2 py-0.5 text-xs font-medium text-sky-300">법유전학</span>
-                        <h3 class="text-lg font-bold leading-snug">DNA Origin Tracker (SNP &amp; PCoA)</h3>
-                        <p class="mt-2 flex-1 text-sm" style="color: var(--color-muted-foreground)">AIMs SNP 패널과 PCoA 군집 분석으로 생물지리학적 기원을 추적합니다.</p>
+                        <span class="mb-2 w-fit rounded border border-sky-400/30 px-2 py-0.5 text-xs font-medium text-sky-300">유전체 원산지</span>
+                        <h3 class="text-lg font-bold leading-snug">Targeted SNP &amp; eDNA Origin Identification</h3>
+                        <p class="mt-2 flex-1 text-sm" style="color: var(--color-muted-foreground)">동식물 유전체 타겟 SNP와 서식지 자생 DNA로 원산지·개체군을 판별합니다.</p>
                         <span class="mt-5 inline-flex items-center gap-2 text-sm font-semibold" style="color: var(--color-primary)">시작하기 <i class="arrow fa-solid fa-arrow-right" aria-hidden="true"></i></span>
                     </a></li>
-                    <li><a href="simulators/3_Forensic_Legal_RAG_Simulator.html" class="sim-card group flex h-full cursor-pointer flex-col rounded-lg border p-6">
+                    <li><a href="sites/3_Forensic_Legal_RAG_Simulator.html" class="sim-card group flex h-full cursor-pointer flex-col rounded-lg border p-6">
                         <div class="mb-5 flex items-center justify-between">
                             <span class="grid h-11 w-11 place-items-center rounded-md bg-amber-500/15 text-lg text-amber-300"><i class="fa-solid fa-scale-balanced" aria-hidden="true"></i></span>
                             <span class="font-mono text-sm" style="color: var(--color-muted-foreground)">03</span>
                         </div>
                         <span class="mb-2 w-fit rounded border border-amber-400/30 px-2 py-0.5 text-xs font-medium text-amber-300">법령 · RAG</span>
-                        <h3 class="text-lg font-bold leading-snug">Legal RAG Simulator</h3>
-                        <p class="mt-2 flex-1 text-sm" style="color: var(--color-muted-foreground)">경찰청훈령 제1227호 「과학수사 기본규칙」 출처 기반 검색 증강 생성을 체험합니다.</p>
+                        <h3 class="text-lg font-bold leading-snug">Forensic Regulation RAG AI Pipeline</h3>
+                        <p class="mt-2 flex-1 text-sm" style="color: var(--color-muted-foreground)">경찰청 과학수사 기본규칙 기반 RAG로 100% 조문 근거를 제시하는 과정을 체험합니다.</p>
                         <span class="mt-5 inline-flex items-center gap-2 text-sm font-semibold" style="color: var(--color-primary)">시작하기 <i class="arrow fa-solid fa-arrow-right" aria-hidden="true"></i></span>
                     </a></li>
-                    <li><a href="simulators/4_AI_Glasses_CSAT_Solving_Pipeline_Simulator.html" class="sim-card group flex h-full cursor-pointer flex-col rounded-lg border p-6">
+                    <li><a href="sites/4_AI_Glasses_CSAT_Solving_Pipeline_Simulator.html" class="sim-card group flex h-full cursor-pointer flex-col rounded-lg border p-6">
                         <div class="mb-5 flex items-center justify-between">
                             <span class="grid h-11 w-11 place-items-center rounded-md bg-violet-500/15 text-lg text-violet-300"><i class="fa-solid fa-glasses" aria-hidden="true"></i></span>
                             <span class="font-mono text-sm" style="color: var(--color-muted-foreground)">04</span>
                         </div>
                         <span class="mb-2 w-fit rounded border border-violet-400/30 px-2 py-0.5 text-xs font-medium text-violet-300">멀티모달 AI</span>
-                        <h3 class="text-lg font-bold leading-snug">AI Glasses CSAT Pipeline Simulator</h3>
-                        <p class="mt-2 flex-1 text-sm" style="color: var(--color-muted-foreground)">렌즈 수신부터 OCR·STT·LLM 추론·HUD 출력까지 7단계 부정행위 파이프라인을 분석합니다.</p>
+                        <h3 class="text-lg font-bold leading-snug">AI Glasses CSAT Solver</h3>
+                        <p class="mt-2 flex-1 text-sm" style="color: var(--color-muted-foreground)">카메라 렌즈 수신부터 OCR·멀티모달·STT·LLM·HUD 출력까지 실시간 풀이 파이프라인을 분석합니다.</p>
                         <span class="mt-5 inline-flex items-center gap-2 text-sm font-semibold" style="color: var(--color-primary)">시작하기 <i class="arrow fa-solid fa-arrow-right" aria-hidden="true"></i></span>
                     </a></li>
-                    <li><a href="simulators/5_Forensic_Plant_eDNA_Location_Tracker.html" class="sim-card group flex h-full cursor-pointer flex-col rounded-lg border p-6">
+                    <li><a href="sites/5_Forensic_Plant_eDNA_Location_Tracker.html" class="sim-card group flex h-full cursor-pointer flex-col rounded-lg border p-6">
                         <div class="mb-5 flex items-center justify-between">
                             <span class="grid h-11 w-11 place-items-center rounded-md bg-emerald-500/15 text-lg text-emerald-300"><i class="fa-solid fa-tree" aria-hidden="true"></i></span>
                             <span class="font-mono text-sm" style="color: var(--color-muted-foreground)">05</span>
                         </div>
                         <span class="mb-2 w-fit rounded border border-emerald-400/30 px-2 py-0.5 text-xs font-medium text-emerald-300">식물 eDNA</span>
                         <h3 class="text-lg font-bold leading-snug">Plant eDNA Location Tracker</h3>
-                        <p class="mt-2 flex-1 text-sm" style="color: var(--color-muted-foreground)">신발 밑창·의류에 부착된 식물 eDNA 메타바코딩으로 지리 공간을 특정합니다.</p>
+                        <p class="mt-2 flex-1 text-sm" style="color: var(--color-muted-foreground)">rbcL / matK / ITS2 메타바코딩 NGS 데이터로 범행 현장 산악 지역을 특정합니다.</p>
                         <span class="mt-5 inline-flex items-center gap-2 text-sm font-semibold" style="color: var(--color-primary)">시작하기 <i class="arrow fa-solid fa-arrow-right" aria-hidden="true"></i></span>
                     </a></li>
-                    <li><a href="simulators/6_Epigenetic_Forensic_Clock_Simulator.html" class="sim-card group flex h-full cursor-pointer flex-col rounded-lg border p-6">
+                    <li><a href="sites/6_Epigenetic_Forensic_Clock_Simulator.html" class="sim-card group flex h-full cursor-pointer flex-col rounded-lg border p-6">
                         <div class="mb-5 flex items-center justify-between">
                             <span class="grid h-11 w-11 place-items-center rounded-md bg-rose-500/15 text-lg text-rose-300"><i class="fa-solid fa-clock-rotate-left" aria-hidden="true"></i></span>
                             <span class="font-mono text-sm" style="color: var(--color-muted-foreground)">06</span>
                         </div>
                         <span class="mb-2 w-fit rounded border border-rose-400/30 px-2 py-0.5 text-xs font-medium text-rose-300">후성유전학</span>
-                        <h3 class="text-lg font-bold leading-snug">Epigenetic Clock &amp; Body Fluid ID</h3>
-                        <p class="mt-2 flex-1 text-sm" style="color: var(--color-muted-foreground)">CpG 메틸화로 생물학적 연령을 추정하고 tDMR로 체액을 정밀 감정합니다.</p>
+                        <h3 class="text-lg font-bold leading-snug">Forensic Epigenetics &amp; Body Fluid ID</h3>
+                        <p class="mt-2 flex-1 text-sm" style="color: var(--color-muted-foreground)">DNA 메틸화로 연령을 추정하고 정액/질 체액을 동시·단독 감정합니다.</p>
                         <span class="mt-5 inline-flex items-center gap-2 text-sm font-semibold" style="color: var(--color-primary)">시작하기 <i class="arrow fa-solid fa-arrow-right" aria-hidden="true"></i></span>
                     </a></li>
-                    <li><a href="simulators/7_Forensic_eDNA_MST_Simulator.html" class="sim-card group flex h-full cursor-pointer flex-col rounded-lg border p-6">
+                    <li><a href="sites/7_Forensic_eDNA_MST_Simulator.html" class="sim-card group flex h-full cursor-pointer flex-col rounded-lg border p-6">
                         <div class="mb-5 flex items-center justify-between">
                             <span class="grid h-11 w-11 place-items-center rounded-md bg-teal-500/15 text-lg text-teal-300"><i class="fa-solid fa-bacterium" aria-hidden="true"></i></span>
                             <span class="font-mono text-sm" style="color: var(--color-muted-foreground)">07</span>
                         </div>
-                        <span class="mb-2 w-fit rounded border border-teal-400/30 px-2 py-0.5 text-xs font-medium text-teal-300">미생물 법의학</span>
-                        <h3 class="text-lg font-bold leading-snug">eDNA MST &amp; Microbial Clock</h3>
-                        <p class="mt-2 flex-1 text-sm" style="color: var(--color-muted-foreground)">16S rRNA 메타게놈 천이로 사망 후 경과시간(PMI)을 역산하고 오염원 기원을 추적합니다.</p>
+                        <span class="mb-2 w-fit rounded border border-teal-400/30 px-2 py-0.5 text-xs font-medium text-teal-300">환경 미생물</span>
+                        <h3 class="text-lg font-bold leading-snug">eDNA Microbial Source Tracking (MST)</h3>
+                        <p class="mt-2 flex-1 text-sm" style="color: var(--color-muted-foreground)">16S rRNA NGS 메타바코딩으로 불법 분뇨 배출 농가를 추적합니다.</p>
                         <span class="mt-5 inline-flex items-center gap-2 text-sm font-semibold" style="color: var(--color-primary)">시작하기 <i class="arrow fa-solid fa-arrow-right" aria-hidden="true"></i></span>
                     </a></li>
                 </ul>
@@ -159,7 +163,7 @@
     <footer class="border-t" style="border-color: var(--color-border)">
         <div class="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-2 px-6 py-5 text-sm" style="color: var(--color-muted-foreground)">
             <span><i class="fa-solid fa-triangle-exclamation mr-1" style="color: var(--color-accent)" aria-hidden="true"></i> 모든 시뮬레이터는 교육용 데모이며 실제 감정 결과를 대체하지 않습니다.</span>
-            <span>Forensic AI Simulators</span>
+            <span>© Yeonbum Kim · <a href="mailto:yeonbumk@gmail.com" class="underline underline-offset-2 hover:text-slate-200">yeonbumk@gmail.com</a></span>
         </div>
     </footer>
 </body>

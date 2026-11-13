@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>법의독성학 LC-MS/MS AI 스펙트럼 디코더 시뮬레이터</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Google Inter Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        tox: {
+                            bg: '#0f172a',
+                            card: '#1e293b',
+                            border: '#334155',
+                            accent: '#38bdf8',
+                            nps: '#f43f5e',
+                            amp: '#fbbf24',
+                            fent: '#a855f7',
+                            cann: '#10b981'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background-color: #0f172a;
+            color: #f8fafc;
+        }
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #1e293b;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #334155;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #38bdf8;
+        }
+        .glass-card {
+            background: rgba(30, 41, 59, 0.85);
+            backdrop-filter: blur(14px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        input[type=range] {
+            accent-color: #38bdf8;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col font-sans antialiased selection:bg-tox-accent selection:text-black">
+    <nav class="bg-slate-900 border-b border-slate-800 px-4 py-2 text-xs"><a href="../index.html" class="inline-flex items-center gap-1.5 text-slate-300 hover:text-white"><i class="fa-solid fa-house" aria-hidden="true"></i> 시뮬레이터 홈</a></nav>
+
+    <!-- DEMO DISCLAIMER BANNER -->
+    <div class="bg-gradient-to-r from-amber-600 via-amber-500 to-amber-600 text-black py-2.5 px-4 text-center font-bold text-xs sm:text-sm shadow-md tracking-wide flex items-center justify-center gap-2 z-50">
+        <i class="fa-solid fa-triangle-exclamation text-base animate-pulse"></i>
+        <span>⚠️ 본 웹페이지는 과학수사 교육 및 법의독성학 AI 스펙트럼 분석 이해를 돕기 위한 데모 시뮬레이터입니다. (DEMO ONLY - NOT FOR REAL FORENSIC USE)</span>
+    </div>
+
+    <!-- HEADER -->
+    <header class="border-b border-slate-800 bg-tox-bg/90 sticky top-0 z-40 backdrop-blur">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex flex-col md:flex-row justify-between items-center gap-3">
+            <div class="flex items-center gap-3">
+                <div class="p-2.5 bg-tox-accent/10 border border-tox-accent/30 rounded-xl text-tox-accent">
+                    <i class="fa-solid fa-vial-circle-check text-2xl"></i>
+                </div>
+                <div>
+                    <h1 class="text-lg sm:text-xl font-bold text-white tracking-tight flex items-center gap-2">
+                        LC-MS/MS AI NPS Spectrum Decoder
+                        <span class="text-xs font-semibold px-2 py-0.5 rounded bg-tox-accent/20 text-tox-accent border border-tox-accent/40">GNN Chem-AI</span>
+                    </h1>
+                    <p class="text-xs text-slate-400">질량분석(LC-MS/MS) 분자 파편 AI 분석 및 신종 유사 마약(NPS) 계열 추정 엔진</p>
+                </div>
+            </div>
+
+            <!-- PRESET BUTTONS -->
+            <div class="flex flex-wrap items-center justify-center gap-2">
+                <span class="text-xs text-slate-400 font-medium mr-1 hidden sm:inline">사건 시나리오:</span>
+                <button onclick="loadPreset('meth_nps')" class="px-3 py-1.5 text-xs font-medium rounded-lg bg-amber-950/80 hover:bg-amber-900 text-amber-300 border border-amber-700/50 transition flex items-center gap-1">
+                    <i class="fa-solid fa-[#capsules]"></i> 신종 필로폰 변종(NPS-A)
+                </button>
+                <button onclick="loadPreset('cathinone')" class="px-3 py-1.5 text-xs font-medium rounded-lg bg-rose-950/80 hover:bg-rose-900 text-rose-300 border border-rose-700/50 transition flex items-center gap-1">
+                    <i class="fa-solid fa-pills"></i> 신종 카티논 변종(NPS-B)
+                </button>
+                <button onclick="loadPreset('fentanyl')" class="px-3 py-1.5 text-xs font-medium rounded-lg bg-purple-950/80 hover:bg-purple-900 text-purple-300 border border-purple-700/50 transition flex items-center gap-1">
+                    <i class="fa-solid fa-syringe"></i> 미지의 펜타닐(NPS-C)
+                </button>
+                <button onclick="loadPreset('therapeutic')" class="px-3 py-1.5 text-xs font-medium rounded-lg bg-emerald-950/80 hover:bg-emerald-900 text-emerald-300 border border-emerald-700/50 transition flex items-center gap-1">
+                    <i class="fa-solid fa-prescription-bottle-medical"></i> 통상 약물/대사체
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- MAIN CONTENT -->
+    <main class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+        <!-- LEFT COLUMN: CONTROLS & LC-MS INPUTS (5 cols) -->
+        <section class="lg:col-span-5 flex flex-col gap-5">
+
+            <!-- CONTROL PANEL CARD -->
+            <div class="glass-card rounded-2xl p-5 shadow-xl">
+                <h2 class="text-xs font-bold text-tox-accent uppercase tracking-wider mb-3 flex items-center gap-1.5">
+                    <i class="fa-solid fa-[#sliders]"></i> 1. 질량분석 조건 및 DB 파라미터 설정
+                </h2>
+
+                <div class="space-y-3.5 text-xs">
+                    <div>
+                        <label class="block text-xs font-medium text-slate-300 mb-1.5">분석 대상 예상 마약 계열 (Target Class)</label>
+                        <select id="drugClassSelect" onchange="calculateSpectrum()" class="w-full bg-slate-900 border border-slate-700 text-slate-200 text-xs rounded-xl p-2.5 focus:ring-2 focus:ring-tox-accent outline-none">
+                            <option value="amphetamine" selected>암페타민/필로폰 계열 (Amphetamines / Meth-like)</option>
+                            <option value="cathinone">합성 카티논 계열 (Synthetic Cathinones)</option>
+                            <option value="fentanyl">펜타닐 유사체 계열 (Fentanyl Analogues)</option>
+                            <option value="cannabinoid">합성 캐나비노이드 계열 (Synthetic Cannabinoids)</option>
+                        </select>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs font-medium text-slate-300 mb-1">이온화 모드 (Ionization)</label>
+                            <div class="bg-slate-900 p-2 rounded-xl border border-slate-800 text-slate-300 font-mono text-[11px] text-center">
+                                ESI (+) Positive Mode
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-slate-300 mb-1">AI 학습 spectral DB</label>
+                            <select id="dbSizeSelect" onchange="calculateSpectrum()" class="w-full bg-slate-900 border border-slate-700 text-slate-200 text-xs rounded-xl p-2 focus:ring-2 focus:ring-tox-accent outline-none">
+                                <option value="50k" selected>50,000+ HighRes DB</option>
+                                <option value="20k">20,000 DB (표준)</option>
+                                <option value="5k">5,000 DB (기초)</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- FRAGMENT SPECTRUM SLIDERS CARD -->
+            <div class="glass-card rounded-2xl p-5 shadow-xl flex-grow flex flex-col justify-between">
+                <div>
+                    <div class="flex justify-between items-center mb-3 border-b border-slate-700/60 pb-2">
+                        <h2 class="text-sm font-semibold text-white flex items-center gap-2">
+                            <i class="fa-solid fa-[#chart-simple] text-tox-accent"></i>
+                            2. 주요 분자 파편 이온 피크 (m/z Intensity)
+                        </h2>
+                        <span class="text-[11px] text-slate-400">Relative Abundance</span>
+                    </div>
+
+                    <div class="space-y-3.5 text-xs" id="peaksContainer">
+                        <!-- Dynamic Sliders -->
+                    </div>
+                </div>
+
+                <div class="mt-4 pt-3 border-t border-slate-800 flex items-center justify-between text-xs">
+                    <span class="text-slate-400">GNN 분자 그래프 매칭 상태:</span>
+                    <span id="gnnStatusBadge" class="font-bold px-2 py-0.5 rounded text-emerald-400 bg-emerald-950/60 border border-emerald-800">
+                        Graph Invariance Matched
+                    </span>
+                </div>
+            </div>
+
+        </section>
+
+        <!-- RIGHT COLUMN: SPECTRUM CHART & GNN ANALYSIS (7 cols) -->
+        <section class="lg:col-span-7 flex flex-col gap-5">
+
+            <!-- MS/MS SPECTRUM CHART CARD -->
+            <div class="glass-card rounded-2xl p-5 shadow-xl">
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-3 border-b border-slate-700/60 pb-2.5">
+                    <div>
+                        <h2 class="text-base font-semibold text-white flex items-center gap-2">
+                            <i class="fa-solid fa-[#chart-column] text-tox-accent"></i>
+                            LC-MS/MS 분자 파편 질량 스펙트럼 (m/z Peak Plot)
+                        </h2>
+                        <p class="text-[11px] text-slate-400">모분자(Precursor Ion) 분해 파편 이온 질량 대 전하비(m/z) 및 상대 강도</p>
+                    </div>
+                    <span class="text-[11px] text-slate-400 bg-slate-900 px-2.5 py-1 rounded border border-slate-800 font-mono">
+                        CID Collision Energy: 25 eV
+                    </span>
+                </div>
+
+                <!-- Spectrum Canvas -->
+                <div class="relative w-full h-56 sm:h-64">
+                    <canvas id="spectrumChart"></canvas>
+                </div>
+            </div>
+
+            <!-- GNN DECODER & DRUG CLASSIFICATION RESULT CARD -->
+            <div class="glass-card rounded-2xl p-6 shadow-xl border-l-4 border-l-rose-500">
+                <div class="flex justify-between items-center border-b border-slate-700/60 pb-3 mb-4">
+                    <div>
+                        <span class="text-[10px] font-bold uppercase tracking-wider text-rose-400">GNN Deep Chem-Informatics Identification</span>
+                        <h2 class="text-base font-bold text-white">AI 법의독성학 신종 마약 감정 결과</h2>
+                    </div>
+                    <span id="npsBadge" class="px-3 py-1 rounded-full text-xs font-bold bg-rose-950 text-rose-300 border border-rose-700">
+                        🚨 DB 미등록 신종 마약 (NPS) 감지
+                    </span>
+                </div>
+
+                <!-- Main Identification Banner -->
+                <div class="bg-slate-900/90 p-4 rounded-xl border border-slate-700 mb-4">
+                    <div class="flex justify-between items-start mb-2">
+                        <div>
+                            <span class="text-xs text-slate-400 block">추정 분자 모체 골격 (Scaffold Core)</span>
+                            <h3 id="scaffoldTitle" class="text-lg font-bold text-amber-300">
+                                Phenethylamine / Methamphetamine Core (필로폰 변종)
+                            </h3>
+                        </div>
+                        <div class="text-right">
+                            <span class="text-xs text-slate-400 block">코어 구조 유사도</span>
+                            <span id="similarityScore" class="text-xl font-extrabold text-tox-accent">88.4%</span>
+                        </div>
+                    </div>
+
+                    <!-- GNN Substructure Match Progress Bar -->
+                    <div class="space-y-1 mt-2">
+                        <div class="flex justify-between text-[11px]">
+                            <span class="text-slate-400">GNN 분자 그래프 구조적 일치 확률:</span>
+                            <span id="gnnConfidenceText" class="text-emerald-400 font-mono font-bold">94.2% Confidence</span>
+                        </div>
+                        <div class="w-full h-2 bg-slate-800 rounded-full overflow-hidden">
+                            <div id="gnnProgressBar" class="h-full bg-gradient-to-r from-amber-500 to-rose-500 transition-all duration-500" style="width: 88.4%"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Substructure Breakdown & Legal Action Grid -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                    <div class="p-3 bg-slate-900/60 rounded-xl border border-slate-800">
+                        <span class="text-slate-400 text-[11px] block mb-1">GNN 추출 핵심 파편 피처 (Substructures)</span>
+                        <p id="substructureText" class="font-medium text-slate-200 leading-snug">
+                            • m/z 91.0: Benzyl C7H7+ 벤젠고리 피크<br>
+                            • m/z 148.1: N-Methylated Side Chain 곁가지
+                        </p>
+                    </div>
+                    <div class="p-3 bg-slate-900/60 rounded-xl border border-slate-800">
+                        <span class="text-slate-400 text-[11px] block mb-1">법적 조치 및 수사 가이드 (Legal Status)</span>
+                        <p id="legalGuideText" class="font-bold text-rose-300 leading-snug">
+                            ▶ 마약류 관리에 관한 법률 적용 (임시 마약류/유사체 지정 추천)
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- FORENSIC INVESTIGATOR SOP & DB GUIDELINE -->
+            <div class="glass-card rounded-2xl p-5 shadow-xl">
+                <h3 class="text-xs font-bold text-white mb-2 flex items-center gap-2 border-b border-slate-700/60 pb-2">
+                    <i class="fa-solid fa-[#graduation-cap] text-tox-accent"></i>
+                    과학수사관 실무 가이드: LC-MS/MS Spectral DB & GNN 구축 지침
+                </h3>
+                <ul class="text-xs text-slate-300 space-y-1.5 list-disc list-inside leading-relaxed">
+                    <li><strong>DB 미등록 신종 유사 마약(NPS) 한계 극복:</strong> 마약 범죄자들이 화학 구조 일부를 변경하여 기존 DB 매칭이 실패하더라도, GNN(그래프 신경망)은 질량 파편 이온 간의 **분자 그래프 구조적 불변성(Invariance)**을 파악하여 관련 마약 계열을 정밀 추정합니다.</li>
+                    <li><strong>표준 DB 구축 필수 조건 (NIST / HighRes Mass DB):</strong> 수사기관 내부 MS/MS 데이터베이스 구축 시 **충돌 에너지(Collision Energy 10, 25, 40 eV)**별 파편 스펙트럼을 체계적으로 수집하여 학습 데이터셋에 축적해야 합니다.</li>
+                    <li><strong>유사체 임시 마약류 지정 법적 입증:</strong> AI가 제시한 모체 골격(Scaffold) 유사도 결과는 국립과학수사연구원 및 검찰의 **신종 유사 마약류 법적 지정 및 긴급 단속**의 과학적 근거로 제출됩니다.</li>
+                </ul>
+            </div>
+
+        </section>
+
+    </main>
+
+    <!-- FOOTER -->
+    <footer class="border-t border-slate-800 py-3.5 text-center text-xs text-slate-500">
+        <p>법의독성학 LC-MS/MS & GNN AI 마약 분석 시뮬레이터 | Educational Forensic Science Web App</p>
+        <p class="mt-1">© Yeonbum Kim · <a href="mailto:yeonbumk@gmail.com" class="underline underline-offset-2 hover:text-slate-300">yeonbumk@gmail.com</a></p>
+    </footer>
+
+    <!-- JAVASCRIPT LOGIC -->
+    <script>
+        // Preset Definitions for NPS Drug Classes
+        const DRUG_PRESETS = {
+            meth_nps: {
+                class: 'amphetamine',
+                title: 'Phenethylamine / Methamphetamine Core (신종 필로폰 변종)',
+                npsBadge: '🚨 DB 미등록 신종 유사 마약 (NPS) 감지',
+                isNPS: true,
+                peaks: [
+                    { id: 'mz1', label: 'm/z 91.0 (Tropylium/Benzyl)', defaultVal: 85 },
+                    { id: 'mz2', label: 'm/z 119.0 (Methylbenzyl)', defaultVal: 60 },
+                    { id: 'mz3', label: 'm/z 148.1 (N-Alkyl Amphetamine)', defaultVal: 100 },
+                    { id: 'mz4', label: 'm/z 210.2 (Precursor Variant)', defaultVal: 45 }
+                ],
+                substructure: '• m/z 91.0: Benzyl (C7H7+) 벤젠고리 파편<br>• m/z 148.1: N-Alkyl Amphetamine 곁가지<br>• m/z 210.2: 변형 고리 사슬',
+                legal: '▶ 마약류 관리에 관한 법률 적용 가능 (필로폰 유사체 임시 지정 추천)'
+            },
+            cathinone: {
+                class: 'cathinone',
+                title: 'Beta-Keto Amphetamine / Cathinone Scaffold (신종 카티논 계열)',
+                npsBadge: '🚨 DB 미등록 신종 합성 카티논 감지',
+                isNPS: true,
+                peaks: [
+                    { id: 'mz1', label: 'm/z 105.0 (Benzoyl C7H5O+)', defaultVal: 95 },
+                    { id: 'mz2', label: 'm/z 133.0 (Keto Fragment)', defaultVal: 70 },
+                    { id: 'mz3', label: 'm/z 178.1 (Pyrrolidine Ring)', defaultVal: 85 },
+                    { id: 'mz4', label: 'm/z 240.2 (Modified Precursor)', defaultVal: 50 }
+                ],
+                substructure: '• m/z 105.0: Benzoyl 계열 케톤 벤젠 파편<br>• m/z 178.1: 피롤리딘(Pyrrolidine) 고리 결합<br>• 카티논 케톤 이중결합 특징 스펙트럼',
+                legal: '▶ 신종 카티논 유사체 지정 및 응급 관보 고시 필요'
+            },
+            fentanyl: {
+                class: 'fentanyl',
+                title: '4-Anilidopiperidine Core (신종 펜타닐 유사체)',
+                npsBadge: '⚠️ 고독성 신종 펜타닐 유사체 감지 (위험)',
+                isNPS: true,
+                peaks: [
+                    { id: 'mz1', label: 'm/z 105.0 (Phenethyl Fragment)', defaultVal: 65 },
+                    { id: 'mz2', label: 'm/z 188.1 (Norfentanyl Fragment)', defaultVal: 100 },
+                    { id: 'mz3', label: 'm/z 216.2 (Anilidopiperidine)', defaultVal: 80 },
+                    { id: 'mz4', label: 'm/z 365.3 (Novel Fentanyl Variant)', defaultVal: 55 }
+                ],
+                substructure: '• m/z 188.1: Norfentanyl 핵심 파편 피크<br>• m/z 216.2: 4-Anilidopiperidine 백본<br>• 마이크로그램 단위 치사량 마약류 계열',
+                legal: '▶ 최우선 임시 마약류 1군 지정 및 긴급 입수 수사 전환'
+            },
+            therapeutic: {
+                class: 'amphetamine',
+                title: 'Acetaminophen / Standard Metabolite (일반 의약품 대사체)',
+                npsBadge: '✅ 통상 치료용 약물/정상 대사체 (불법 마약 아님)',
+                isNPS: false,
+                peaks: [
+                    { id: 'mz1', label: 'm/z 110.0 (Aminophenol)', defaultVal: 30 },
+                    { id: 'mz2', label: 'm/z 152.1 (Acetaminophen M+H)', defaultVal: 100 },
+                    { id: 'mz3', label: 'm/z 180.0 (Glucuronide Frag)', defaultVal: 20 },
+                    { id: 'mz4', label: 'm/z 230.1 (Trace Metabolite)', defaultVal: 10 }
+                ],
+                substructure: '• m/z 152.1: 타이레놀(아세트아미노펜) 분자량 일치<br>• 불법 마약류 모체 골격 미검출<br>• 정상 대사 부산물 지표',
+                legal: '▶ 무혐의 / 불법 약물 성분 미감지 (범죄 혐의 없음)'
+            }
+        };
+
+        let spectrumChart = null;
+
+        window.addEventListener('DOMContentLoaded', () => {
+            renderPeaks();
+            initChart();
+            calculateSpectrum();
+        });
+
+        // Render Dynamic Peak Sliders
+        function renderPeaks() {
+            const container = document.getElementById('peaksContainer');
+            container.innerHTML = '';
+            
+            const currentPreset = DRUG_PRESETS.meth_nps;
+
+            currentPreset.peaks.forEach(p => {
+                const div = document.createElement('div');
+                div.className = 'bg-slate-900/60 p-3 rounded-xl border border-slate-800 hover:border-slate-700 transition';
+                div.innerHTML = `
+                    <div class="flex justify-between items-center mb-1 font-mono">
+                        <label class="font-medium text-slate-200">${p.label}</label>
+                        <div class="flex items-center gap-1">
+                            <input type="number" id="num_${p.id}" min="0" max="100" step="1" value="${p.defaultVal}"
+                                oninput="syncInput('${p.id}', 'num')"
+                                class="w-14 bg-slate-800 border border-slate-700 text-right text-xs text-tox-accent rounded px-1.5 py-0.5 focus:outline-none">
+                            <span class="text-slate-400 text-[11px]">%</span>
+                        </div>
+                    </div>
+                    <input type="range" id="range_${p.id}" min="0" max="100" step="1" value="${p.defaultVal}"
+                        oninput="syncInput('${p.id}', 'range')"
+                        class="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer">
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        function syncInput(id, source) {
+            const range = document.getElementById(`range_${id}`);
+            const num = document.getElementById(`num_${id}`);
+            if (source === 'range') num.value = range.value;
+            else range.value = num.value;
+            calculateSpectrum();
+        }
+
+        // Preset Button Loader
+        function loadPreset(key) {
+            const preset = DRUG_PRESETS[key];
+            if (!preset) return;
+
+            document.getElementById('drugClassSelect').value = preset.class;
+
+            preset.peaks.forEach(p => {
+                const num = document.getElementById(`num_${p.id}`);
+                const range = document.getElementById(`range_${p.id}`);
+                if (num && range) {
+                    num.value = p.defaultVal;
+                    range.value = p.defaultVal;
+                }
+            });
+
+            calculateSpectrum(preset);
+        }
+
+        // Initialize Chart.js MS/MS Peak Plot
+        function initChart() {
+            const ctx = document.getElementById('spectrumChart').getContext('2d');
+            spectrumChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['m/z 91.0', 'm/z 119.0', 'm/z 148.1', 'm/z 210.2'],
+                    datasets: [{
+                        label: 'Relative Abundance (%)',
+                        data: [85, 60, 100, 45],
+                        backgroundColor: [
+                            'rgba(56, 189, 248, 0.85)',
+                            'rgba(56, 189, 248, 0.85)',
+                            'rgba(244, 63, 94, 0.95)',
+                            'rgba(251, 191, 36, 0.85)'
+                        ],
+                        borderColor: '#38bdf8',
+                        borderWidth: 1,
+                        borderRadius: 4,
+                        barPercentage: 0.35
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return `Peak Abundance: ${context.parsed.y}%`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            grid: { color: 'rgba(255, 255, 255, 0.05)' },
+                            ticks: { color: '#94a3b8', font: { size: 10, family: 'monospace' } }
+                        },
+                        y: {
+                            title: { display: true, text: 'Relative Intensity (%)', color: '#64748b', font: { size: 10 } },
+                            grid: { color: 'rgba(255, 255, 255, 0.05)' },
+                            ticks: { color: '#64748b', font: { size: 9 } },
+                            min: 0, max: 100
+                        }
+                    }
+                }
+            });
+        }
+
+        // MAIN AI SIMULATION CALCULATION
+        function calculateSpectrum(customPreset = null) {
+            const p1 = parseFloat(document.getElementById('num_mz1')?.value) || 0;
+            const p2 = parseFloat(document.getElementById('num_mz2')?.value) || 0;
+            const p3 = parseFloat(document.getElementById('num_mz3')?.value) || 0;
+            const p4 = parseFloat(document.getElementById('num_mz4')?.value) || 0;
+
+            const selectedClass = document.getElementById('drugClassSelect').value;
+            const dbSize = document.getElementById('dbSizeSelect').value;
+
+            // Update Chart Data
+            if (spectrumChart) {
+                spectrumChart.data.datasets[0].data = [p1, p2, p3, p4];
+                spectrumChart.update();
+            }
+
+            // GNN Core Match Score Formula
+            let baseScore = (p1 * 0.25) + (p2 * 0.20) + (p3 * 0.40) + (p4 * 0.15);
+            
+            // DB Size Modifier
+            if (dbSize === '50k') baseScore *= 1.05;
+            else if (dbSize === '5k') baseScore *= 0.90;
+
+            let similarity = Math.max(12.0, Math.min(98.5, baseScore));
+
+            // Dynamic Preset Info Logic
+            let info = customPreset;
+            if (!info) {
+                if (selectedClass === 'amphetamine') info = DRUG_PRESETS.meth_nps;
+                else if (selectedClass === 'cathinone') info = DRUG_PRESETS.cathinone;
+                else if (selectedClass === 'fentanyl') info = DRUG_PRESETS.fentanyl;
+                else info = DRUG_PRESETS.meth_nps;
+            }
+
+            // Update UI Elements
+            document.getElementById('scaffoldTitle').innerText = info.title;
+            document.getElementById('npsBadge').innerText = info.npsBadge;
+
+            if (info.isNPS) {
+                document.getElementById('npsBadge').className = "px-3 py-1 rounded-full text-xs font-bold bg-rose-950 text-rose-300 border border-rose-700";
+            } else {
+                document.getElementById('npsBadge').className = "px-3 py-1 rounded-full text-xs font-bold bg-emerald-950 text-emerald-300 border border-emerald-700";
+            }
+
+            document.getElementById('similarityScore').innerText = `${similarity.toFixed(1)}%`;
+            document.getElementById('gnnConfidenceText').innerText = `${(similarity * 1.04).toFixed(1)}% Confidence`;
+            document.getElementById('gnnProgressBar').style.width = `${similarity}%`;
+            document.getElementById('substructureText').innerHTML = info.substructure;
+            document.getElementById('legalGuideText').innerText = info.legal;
+        }
+    </script>
+</body>
+</html>

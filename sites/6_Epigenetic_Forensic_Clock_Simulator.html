@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>후성유전학(DNA 메틸화) 연령 및 성범죄 체액 판별 AI 시뮬레이터</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Google Inter Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        epi: {
+                            bg: '#0c0f1d',
+                            card: '#161b33',
+                            border: '#2a3256',
+                            accent: '#00f5d4',
+                            semen: '#e9c46a',
+                            vaginal: '#ff70a6',
+                            blood: '#e63946',
+                            saliva: '#457b9d',
+                            sweat: '#2a9d8f'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background-color: #0c0f1d;
+            color: #f1f5f9;
+        }
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #161b33;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #2a3256;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #00f5d4;
+        }
+        .glass-card {
+            background: rgba(22, 27, 51, 0.82);
+            backdrop-filter: blur(14px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        input[type=range] {
+            accent-color: #00f5d4;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col font-sans antialiased selection:bg-epi-accent selection:text-black">
+    <nav class="bg-slate-900 border-b border-slate-800 px-4 py-2 text-xs"><a href="../index.html" class="inline-flex items-center gap-1.5 text-slate-300 hover:text-white"><i class="fa-solid fa-house" aria-hidden="true"></i> 시뮬레이터 홈</a></nav>
+
+    <!-- 1. DEMO DISCLAIMER BANNER -->
+    <div class="bg-gradient-to-r from-amber-600 via-amber-500 to-amber-600 text-black py-2.5 px-4 text-center font-bold text-xs sm:text-sm shadow-md tracking-wide flex items-center justify-center gap-2 z-50">
+        <i class="fa-solid fa-triangle-exclamation text-base animate-pulse"></i>
+        <span>⚠️ 본 웹페이지는 과학수사 교육 및 이해를 돕기 위한 데모 시뮬레이터입니다. (DEMO ONLY - NOT FOR REAL FORENSIC USE)</span>
+    </div>
+
+    <!-- HEADER -->
+    <header class="border-b border-gray-800 bg-epi-bg/90 sticky top-0 z-40 backdrop-blur">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex flex-col md:flex-row justify-between items-center gap-3">
+            <div class="flex items-center gap-3">
+                <div class="p-2.5 bg-epi-accent/10 border border-epi-accent/30 rounded-xl text-epi-accent">
+                    <i class="fa-solid fa-dna text-2xl"></i>
+                </div>
+                <div>
+                    <h1 class="text-lg sm:text-xl font-bold text-white tracking-tight flex items-center gap-2">
+                        Forensic Epigenetics & Body Fluid ID
+                        <span class="text-xs font-semibold px-2 py-0.5 rounded bg-epi-accent/20 text-epi-accent border border-epi-accent/40">Sexual Offense AI</span>
+                    </h1>
+                    <p class="text-xs text-gray-400">후성유전학(DNA 메틸화) 연령 추정 및 정액/질 체액 동시·단독 감정 시뮬레이터</p>
+                </div>
+            </div>
+
+            <!-- PRESET BUTTONS FOR SEXUAL ASSAULT SCENARIOS -->
+            <div class="flex flex-wrap items-center justify-center gap-2">
+                <span class="text-xs text-gray-400 font-medium mr-1 hidden sm:inline">성범죄 사건 시나리오:</span>
+                <button onclick="loadPreset('dual')" class="px-3 py-1.5 text-xs font-medium rounded-lg bg-pink-950/80 hover:bg-pink-900 text-pink-300 border border-pink-700/50 transition flex items-center gap-1">
+                    <i class="fa-solid fa-venus-mars"></i> 정액(+)/질체액(+)
+                </button>
+                <button onclick="loadPreset('vaginal_only')" class="px-3 py-1.5 text-xs font-medium rounded-lg bg-purple-950/80 hover:bg-purple-900 text-purple-300 border border-purple-700/50 transition flex items-center gap-1">
+                    <i class="fa-solid fa-hand-holding-hand"></i> 정액(-)/질체액(+)
+                </button>
+                <button onclick="loadPreset('semen_only')" class="px-3 py-1.5 text-xs font-medium rounded-lg bg-amber-950/80 hover:bg-amber-900 text-amber-300 border border-amber-700/50 transition flex items-center gap-1">
+                    <i class="fa-solid fa-droplet"></i> 정액(+)/질체액(-)
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- MAIN CONTENT -->
+    <main class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+        <!-- LEFT COLUMN: CONTROLS & MARKER INPUTS (5 cols) -->
+        <section class="lg:col-span-5 flex flex-col gap-5">
+
+            <!-- CPG AGE MARKERS CARD -->
+            <div class="glass-card rounded-2xl p-5 shadow-xl">
+                <div class="flex justify-between items-center mb-2 border-b border-gray-700/60 pb-2">
+                    <h2 class="text-sm font-semibold text-white flex items-center gap-2">
+                        <i class="fa-solid fa-clock text-epi-accent"></i>
+                        1. 연령 추정 CpG 메틸화 마커 (%)
+                    </h2>
+                    <span class="text-[11px] text-gray-400">Targeted Pyroseq</span>
+                </div>
+                <div class="space-y-3 text-xs mt-3" id="ageMarkersContainer">
+                    <!-- Dynamic Sliders -->
+                </div>
+            </div>
+
+            <!-- FLUID METHYLATION & MICROBIOME MARKERS CARD -->
+            <div class="glass-card rounded-2xl p-5 shadow-xl flex-grow flex flex-col justify-between">
+                <div>
+                    <div class="flex justify-between items-center mb-2 border-b border-gray-700/60 pb-2">
+                        <h2 class="text-sm font-semibold text-white flex items-center gap-2">
+                            <i class="fa-solid fa-vial-virus text-epi-accent"></i>
+                            2. 체액 판별 후성유전 및 마이크로바이옴 마커 (%)
+                        </h2>
+                        <span class="text-[11px] text-gray-400">Tissue & Microbiome</span>
+                    </div>
+
+                    <div class="space-y-3 text-xs mt-3" id="fluidMarkersContainer">
+                        <!-- Dynamic Sliders -->
+                    </div>
+                </div>
+
+                <div class="mt-4 pt-3 border-t border-gray-800 flex items-center justify-between text-xs">
+                    <span class="text-gray-400">분석 기술:</span>
+                    <span class="font-bold px-2 py-0.5 rounded text-emerald-400 bg-emerald-950/60 border border-emerald-800">
+                        Targeted Bisulfite NGS + 16S rRNA
+                    </span>
+                </div>
+            </div>
+
+        </section>
+
+        <!-- RIGHT COLUMN: FORENSIC EVALUATION & OUTPUT (7 cols) -->
+        <section class="lg:col-span-7 flex flex-col gap-5">
+
+            <!-- SEXUAL ASSAULT SPECIFIC DETECTOR DASHBOARD -->
+            <div class="glass-card rounded-2xl p-6 shadow-xl border-l-4 border-l-pink-500">
+                <div class="flex justify-between items-center border-b border-gray-700/60 pb-3 mb-4">
+                    <div>
+                        <span class="text-[10px] font-bold uppercase tracking-wider text-pink-400">Sexual Offense Forensic Evaluation</span>
+                        <h2 class="text-base font-bold text-white">성범죄 체액 교환 감정 (정액 & 질 분비물)</h2>
+                    </div>
+                    <span id="detectionComboBadge" class="px-3 py-1 rounded-full text-xs font-bold bg-pink-950 text-pink-300 border border-pink-700">
+                        정액(+) & 질 체액(+)
+                    </span>
+                </div>
+
+                <!-- 3 Detection Combinations Display Box -->
+                <div id="combinationResultBox" class="p-4 rounded-xl bg-gray-900/90 border border-gray-700 mb-4 space-y-2">
+                    <div class="flex items-center gap-2">
+                        <i id="comboIcon" class="fa-solid fa-venus-mars text-2xl text-pink-400"></i>
+                        <div>
+                            <div id="comboTitle" class="text-sm font-bold text-white">동시 검출: 정액(+) & 질 체액(+)</div>
+                            <div id="comboSub" class="text-xs text-emerald-400 font-medium">직접적 성행위 및 비대칭적 체액 교환 확정</div>
+                        </div>
+                    </div>
+                    <p id="comboDesc" class="text-xs text-gray-300 leading-relaxed pt-1">
+                        피의자 검체에서 정액 유래 DNA/마커와 피해자 유래 질 상피세포 및 질 마이크로바이옴(Lactobacillus)이 동시 감정되었습니다.
+                    </p>
+                </div>
+
+                <!-- Legal Impact & Defense Refutation Box -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                    <div class="p-3 bg-gray-900/60 rounded-xl border border-gray-800">
+                        <span class="text-gray-400 text-[11px] block mb-1">피의자 무죄 주장 반박력 (Refutation)</span>
+                        <span id="refutationText" class="font-bold text-pink-300 leading-snug block">
+                            "성행위가 없었다"는 주장을 과학적으로 무력화함
+                        </span>
+                    </div>
+                    <div class="p-3 bg-gray-900/60 rounded-xl border border-gray-800">
+                        <span class="text-gray-400 text-[11px] block mb-1">법정 증거 입증 수준 (Evidentiary Level)</span>
+                        <span id="legalLevelText" class="font-bold text-emerald-400 leading-snug block">
+                            법적 증거력: 매우 높음 (Strong Evidence)
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- AGE & FLUID ESTIMATION CARDS (2 Grid) -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+
+                <!-- Epigenetic Age Clock Gauge (REDESIGNED) -->
+                <div class="glass-card rounded-2xl p-5 shadow-xl border-l-4 border-l-epi-accent flex flex-col justify-between relative overflow-hidden">
+                    <div>
+                        <div class="flex justify-between items-center mb-1">
+                            <span class="text-[10px] font-bold uppercase tracking-wider text-epi-accent">DNA Epigenetic Age Clock</span>
+                            <span id="ageGroupTag" class="text-[10px] font-bold px-2 py-0.5 rounded bg-cyan-950 text-cyan-300 border border-cyan-800">30대 중반</span>
+                        </div>
+                        <h3 class="text-sm font-bold text-white mb-2">용의자 생물학적 연령 시계</h3>
+
+                        <!-- Radial Gauge / Doughnut Chart Canvas Container -->
+                        <div class="relative w-full h-44 flex items-center justify-center my-1">
+                            <canvas id="ageGaugeChart"></canvas>
+                            <!-- Center Digital Age Display -->
+                            <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none pt-2">
+                                <span id="predictedAge" class="text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-epi-accent via-white to-purple-300">
+                                    34.2
+                                </span>
+                                <span class="text-[11px] font-semibold text-gray-400">세 (±2.3세)</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mt-1 pt-2 border-t border-gray-800 text-[11px] text-emerald-400 font-semibold flex justify-between items-center">
+                        <span>수사선상 용의자 연령 압축 가능</span>
+                        <span id="cpgStatusText" class="text-gray-400 text-[10px]">ELOVL2 등 3종 CpG 보정</span>
+                    </div>
+                </div>
+
+                <!-- Fluid Multi-Proportion Card -->
+                <div class="glass-card rounded-2xl p-5 shadow-xl border-l-4 border-l-purple-500 flex flex-col justify-between">
+                    <div>
+                        <span class="text-[10px] font-bold uppercase tracking-wider text-purple-400">Tissue & Fluid Proportions</span>
+                        <h3 class="text-sm font-bold text-white mb-2">체액별 마커 구성비 (%)</h3>
+
+                        <div class="space-y-2 text-xs my-2">
+                            <div>
+                                <div class="flex justify-between text-[11px] mb-0.5">
+                                    <span class="text-amber-300 font-medium">정액 마커 (KLK3)</span>
+                                    <span id="pctSemen" class="font-mono text-amber-400">85%</span>
+                                </div>
+                                <div class="w-full h-1.5 bg-gray-800 rounded-full overflow-hidden">
+                                    <div id="barSemen" class="h-full bg-amber-500 transition-all duration-500" style="width: 85%"></div>
+                                </div>
+                            </div>
+                            <div>
+                                <div class="flex justify-between text-[11px] mb-0.5">
+                                    <span class="text-pink-300 font-medium">질 체액/마이크로바이옴</span>
+                                    <span id="pctVaginal" class="font-mono text-pink-400">78%</span>
+                                </div>
+                                <div class="w-full h-1.5 bg-gray-800 rounded-full overflow-hidden">
+                                    <div id="barVaginal" class="h-full bg-pink-500 transition-all duration-500" style="width: 78%"></div>
+                                </div>
+                            </div>
+                            <div>
+                                <div class="flex justify-between text-[11px] mb-0.5">
+                                    <span class="text-red-300 font-medium">혈흔 마커 (BCAS4)</span>
+                                    <span id="pctBlood" class="font-mono text-red-400">10%</span>
+                                </div>
+                                <div class="w-full h-1.5 bg-gray-800 rounded-full overflow-hidden">
+                                    <div id="barBlood" class="h-full bg-red-500 transition-all duration-500" style="width: 10%"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mt-2 pt-2 border-t border-gray-800 text-[11px] text-gray-400">
+                        후성유전 + 16S rRNA 융합 감정
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- FORENSIC INTERPRETATION GUIDE -->
+            <div class="glass-card rounded-2xl p-5 shadow-xl">
+                <h3 class="text-xs font-bold text-white mb-2 flex items-center gap-2 border-b border-gray-700/60 pb-2">
+                    <i class="fa-solid fa-graduation-cap text-epi-accent"></i>
+                    성범죄 과학수사 감정 지침 및 수사적 의의
+                </h3>
+                <ul class="text-xs text-gray-300 space-y-1.5 list-disc list-inside leading-relaxed">
+                    <li><strong>정액 미검출 무죄 주장 반박:</strong> 피의자가 콘돔을 착용했거나 사정을 하지 않았더라도, 피의자 성기/손가락/도구에서 피해자의 <strong>질 상피 특이 DNA 메틸화 마커 및 질 마이크로바이옴(*Lactobacillus*)</strong>이 검출되면 직접적 질 내 성적 접촉을 입증할 수 있습니다.</li>
+                    <li><strong>쌍방향 체액 교환(Transfer Evidence):</strong> 피해자 측 정액 감정뿐만 아니라, 피의자 측 질 체액 역감정을 통해 성행위의 물리적 사실관계를 이중 입증합니다.</li>
+                    <li><strong>후성유전 연령 추정:</strong> 용의자 미상 성범죄 사건에서 미량 DNA를 바탕으로 용의자의 실제 생물학적 나이대(±2~3세 오차)를 추정하여 수사선을 획기적으로 압축합니다.</li>
+                </ul>
+            </div>
+
+        </section>
+
+    </main>
+
+    <!-- FOOTER -->
+    <footer class="border-t border-gray-800 py-3.5 text-center text-xs text-gray-500">
+        <p>성범죄 바이오포렌식 & 체액 감정 AI 시뮬레이터 | Educational Forensic Science Web App</p>
+        <p class="mt-1">© Yeonbum Kim · <a href="mailto:yeonbumk@gmail.com" class="underline underline-offset-2 hover:text-slate-300">yeonbumk@gmail.com</a></p>
+    </footer>
+
+    <!-- JAVASCRIPT LOGIC -->
+    <script>
+        // Age CpG Markers
+        const AGE_MARKERS = [
+            { id: 'elovl2', name: 'ELOVL2 (CpG 1)', desc: '연령 양의 상관 마커', weight: 0.72, defaultVal: 48 },
+            { id: 'fhl2', name: 'FHL2 (CpG 2)', desc: '노화 연관 메틸화 마커', weight: 0.45, defaultVal: 35 },
+            { id: 'kcnq1dn', name: 'KCNQ1DN (CpG 3)', desc: '중년 이후 상승 마커', weight: 0.38, defaultVal: 30 }
+        ];
+
+        // Fluid & Microbiome Markers
+        const FLUID_MARKERS = [
+            { id: 'fl_semen', name: '정액 특이 마커 (KLK3 / PRMT2 저메틸화)', type: 'semen', defaultVal: 85 },
+            { id: 'fl_vaginal_epi', name: '질 상피 특이 마커 (MYH11 / CYP2B6 메틸화)', type: 'vaginal', defaultVal: 78 },
+            { id: 'fl_lacto', name: '질 마이크로바이옴 (Lactobacillus 16S Read %)', type: 'vaginal', defaultVal: 72 },
+            { id: 'fl_blood', name: '혈흔 특이 마커 (BCAS4 / CGD 저메틸화)', type: 'blood', defaultVal: 10 }
+        ];
+
+        let ageGaugeChart = null;
+
+        window.addEventListener('DOMContentLoaded', () => {
+            renderAgeSliders();
+            renderFluidSliders();
+            initAgeGaugeChart();
+            calculateForensics();
+        });
+
+        function renderAgeSliders() {
+            const container = document.getElementById('ageMarkersContainer');
+            container.innerHTML = '';
+            AGE_MARKERS.forEach(m => {
+                const div = document.createElement('div');
+                div.className = 'bg-gray-900/60 p-2.5 rounded-xl border border-gray-800 hover:border-gray-700 transition';
+                div.innerHTML = `
+                    <div class="flex justify-between items-center mb-1">
+                        <label class="font-medium text-gray-200">${m.name}</label>
+                        <div class="flex items-center gap-1">
+                            <input type="number" id="num_${m.id}" min="0" max="100" step="1" value="${m.defaultVal}"
+                                oninput="syncInput('${m.id}', 'num')"
+                                class="w-14 bg-gray-800 border border-gray-700 text-right text-xs font-mono text-epi-accent rounded px-1.5 py-0.5 focus:outline-none">
+                            <span class="text-gray-400 text-[11px]">%</span>
+                        </div>
+                    </div>
+                    <input type="range" id="range_${m.id}" min="0" max="100" step="1" value="${m.defaultVal}"
+                        oninput="syncInput('${m.id}', 'range')"
+                        class="w-full h-1.5 bg-gray-800 rounded-lg appearance-none cursor-pointer">
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        function renderFluidSliders() {
+            const container = document.getElementById('fluidMarkersContainer');
+            container.innerHTML = '';
+            FLUID_MARKERS.forEach(m => {
+                const div = document.createElement('div');
+                div.className = 'bg-gray-900/60 p-2.5 rounded-xl border border-gray-800 hover:border-gray-700 transition';
+                div.innerHTML = `
+                    <div class="flex justify-between items-center mb-1">
+                        <label class="font-medium text-gray-200">${m.name}</label>
+                        <div class="flex items-center gap-1">
+                            <input type="number" id="num_${m.id}" min="0" max="100" step="1" value="${m.defaultVal}"
+                                oninput="syncInput('${m.id}', 'num')"
+                                class="w-14 bg-gray-800 border border-gray-700 text-right text-xs font-mono text-epi-accent rounded px-1.5 py-0.5 focus:outline-none">
+                            <span class="text-gray-400 text-[11px]">%</span>
+                        </div>
+                    </div>
+                    <input type="range" id="range_${m.id}" min="0" max="100" step="1" value="${m.defaultVal}"
+                        oninput="syncInput('${m.id}', 'range')"
+                        class="w-full h-1.5 bg-gray-800 rounded-lg appearance-none cursor-pointer">
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        function syncInput(id, source) {
+            const range = document.getElementById(`range_${id}`);
+            const num = document.getElementById(`num_${id}`);
+            if (source === 'range') num.value = range.value;
+            else range.value = num.value;
+            calculateForensics();
+        }
+
+        // PRESET LOADERS FOR SEXUAL OFFENSE SCENARIOS
+        function loadPreset(type) {
+            if (type === 'dual') {
+                // Semen (+) & Vaginal (+)
+                setValue('fl_semen', 88);
+                setValue('fl_vaginal_epi', 82);
+                setValue('fl_lacto', 75);
+                setValue('fl_blood', 8);
+            } else if (type === 'vaginal_only') {
+                // Semen (-) & Vaginal (+)
+                setValue('fl_semen', 5);
+                setValue('fl_vaginal_epi', 85);
+                setValue('fl_lacto', 80);
+                setValue('fl_blood', 10);
+            } else if (type === 'semen_only') {
+                // Semen (+) & Vaginal (-)
+                setValue('fl_semen', 92);
+                setValue('fl_vaginal_epi', 8);
+                setValue('fl_lacto', 5);
+                setValue('fl_blood', 5);
+            }
+            calculateForensics();
+        }
+
+        function setValue(id, val) {
+            document.getElementById(`num_${id}`).value = val;
+            document.getElementById(`range_${id}`).value = val;
+        }
+
+        // Initialize Radial Epigenetic Clock Gauge Chart (Replaces boring line graph)
+        function initAgeGaugeChart() {
+            const ctx = document.getElementById('ageGaugeChart').getContext('2d');
+
+            ageGaugeChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    datasets: [{
+                        data: [34.2, 80 - 34.2], // Age vs Remaining scale (Max 80)
+                        backgroundColor: ['#00f5d4', '#1f2937'],
+                        borderWidth: 0,
+                        circumference: 240,
+                        rotation: 240
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: { enabled: false }
+                    },
+                    cutout: '78%'
+                }
+            });
+        }
+
+        // MAIN CALCULATION ENGINE
+        function calculateForensics() {
+            // 1. Calculate Age
+            const elovl2 = parseFloat(document.getElementById('num_elovl2').value) || 0;
+            const fhl2 = parseFloat(document.getElementById('num_fhl2').value) || 0;
+            const kcnq1dn = parseFloat(document.getElementById('num_kcnq1dn').value) || 0;
+
+            let estimatedAge = 12.0 + (0.50 * elovl2) + (0.24 * fhl2) + (0.16 * kcnq1dn);
+            estimatedAge = Math.max(15.0, Math.min(80.0, estimatedAge));
+
+            // Update Radial Gauge Chart
+            if (ageGaugeChart) {
+                ageGaugeChart.data.datasets[0].data = [estimatedAge, 80 - estimatedAge];
+                
+                // Color shift based on age tier
+                if (estimatedAge < 30) {
+                    ageGaugeChart.data.datasets[0].backgroundColor[0] = '#48cae4';
+                } else if (estimatedAge < 50) {
+                    ageGaugeChart.data.datasets[0].backgroundColor[0] = '#00f5d4';
+                } else {
+                    ageGaugeChart.data.datasets[0].backgroundColor[0] = '#f59e0b';
+                }
+                ageGaugeChart.update();
+            }
+
+            document.getElementById('predictedAge').innerText = estimatedAge.toFixed(1);
+            
+            const decade = Math.floor(estimatedAge / 10) * 10;
+            const groupTag = document.getElementById('ageGroupTag');
+            groupTag.innerText = `${decade}대 ${estimatedAge % 10 < 5 ? '초·중반' : '후반'}`;
+
+            // 2. Fluid Proportions
+            const flSemen = parseFloat(document.getElementById('num_fl_semen').value) || 0;
+            const flVaginalEpi = parseFloat(document.getElementById('num_fl_vaginal_epi').value) || 0;
+            const flLacto = parseFloat(document.getElementById('num_fl_lacto').value) || 0;
+            const flBlood = parseFloat(document.getElementById('num_fl_blood').value) || 0;
+
+            const flVaginalAvg = (flVaginalEpi + flLacto) / 2;
+
+            document.getElementById('pctSemen').innerText = `${flSemen}%`;
+            document.getElementById('pctVaginal').innerText = `${flVaginalAvg.toFixed(0)}%`;
+            document.getElementById('pctBlood').innerText = `${flBlood}%`;
+
+            document.getElementById('barSemen').style.width = `${flSemen}%`;
+            document.getElementById('barVaginal').style.width = `${flVaginalAvg}%`;
+            document.getElementById('barBlood').style.width = `${flBlood}%`;
+
+            // 3. Sexual Offense Dual/Single Detection Logic
+            const hasSemen = flSemen >= 40;
+            const hasVaginal = flVaginalAvg >= 40;
+
+            const comboBadge = document.getElementById('detectionComboBadge');
+            const comboTitle = document.getElementById('comboTitle');
+            const comboSub = document.getElementById('comboSub');
+            const comboDesc = document.getElementById('comboDesc');
+            const comboIcon = document.getElementById('comboIcon');
+            const refutationText = document.getElementById('refutationText');
+            const legalLevelText = document.getElementById('legalLevelText');
+
+            if (hasSemen && hasVaginal) {
+                // CASE 1: DUAL (+)
+                comboBadge.className = "px-3 py-1 rounded-full text-xs font-bold bg-pink-950 text-pink-300 border border-pink-700";
+                comboBadge.innerText = "정액(+) & 질 체액(+) 동시 검출";
+                comboIcon.className = "fa-solid fa-venus-mars text-2xl text-pink-400";
+                comboTitle.innerText = "CASE 1. 동시 검출: 정액(+) & 질 체액(+)";
+                comboSub.innerText = "직접적 성행위 완료 및 비대칭적 체액 교환(Transfer Evidence) 입증";
+                comboDesc.innerHTML = `피의자 성기/증거물에서 <strong>정액 유래 DNA/마커</strong>와 피해자 유래 <strong>질 상피세포 및 질 마이크로바이옴(*Lactobacillus*)</strong>이 동시에 감정되었습니다.`;
+                refutationText.innerText = `"성관계 사실이 없다"는 피의자의 진술을 완전 무력화함`;
+                legalLevelText.innerText = `법적 증거력: 매우 높음 (Very Strong Evidence)`;
+            } else if (!hasSemen && hasVaginal) {
+                // CASE 2: VAGINAL ONLY (+/-)
+                comboBadge.className = "px-3 py-1 rounded-full text-xs font-bold bg-purple-950 text-purple-300 border border-purple-700";
+                comboBadge.innerText = "정액(-) & 질 체액(+) 단독 검출";
+                comboIcon.className = "fa-solid fa-hand-holding-hand text-2xl text-purple-400";
+                comboTitle.innerText = "CASE 2. 단독 검출: 정액(-) & 질 체액(+)";
+                comboSub.innerText = "콘돔 착용, 미사정 성행위, 손가락/도구 이용 질 내 접촉 입증";
+                comboDesc.innerHTML = `정액은 검출되지 않았으나, 피의자의 성기/손가락/도구에서 <strong>피해자의 질 체액 DNA 및 *Lactobacillus* eDNA</strong>가 명확히 감정되었습니다.`;
+                refutationText.innerText = `"정액이 나오지 않았으므로 성관계가 없었다"는 무죄 주장 정면 반박`;
+                legalLevelText.innerText = `법적 증거력: 높음 (Strong Evidence - Refutes Defense)`;
+            } else if (hasSemen && !hasVaginal) {
+                // CASE 3: SEMEN ONLY (+/-)
+                comboBadge.className = "px-3 py-1 rounded-full text-xs font-bold bg-amber-950 text-amber-300 border border-amber-700";
+                comboBadge.innerText = "정액(+) & 질 체액(-) 단독 검출";
+                comboIcon.className = "fa-solid fa-droplet text-2xl text-amber-400";
+                comboTitle.innerText = "CASE 3. 단독 검출: 정액(+) & 질 체액(-)";
+                comboSub.innerText = "구강/피부 등 질 외 접촉 또는 일방향 체액 유출 정황";
+                comboDesc.innerHTML = `정액 마커는 고농도로 감정되었으나 질 체액 및 질 마이크로바이옴 마커는 검출되지 않았습니다. 구강상피/피부 접촉 등 타 형태의 성적 접촉 가능성이 제시됩니다.`;
+                refutationText.innerText = `일방향 체액 전달 및 질 외 성적 접촉 정황 입증`;
+                legalLevelText.innerText = `법적 증거력: 보강 수사 필요 (Moderate)`;
+            } else {
+                // NEITHER
+                comboBadge.className = "px-3 py-1 rounded-full text-xs font-bold bg-gray-800 text-gray-400 border border-gray-700";
+                comboBadge.innerText = "체액 미검출 / 음성";
+                comboIcon.className = "fa-solid fa-circle-xmark text-2xl text-gray-500";
+                comboTitle.innerText = "주요 성범죄 체액 마커 미감지";
+                comboSub.innerText = "정액 및 질 분비물 마커 수치 미달";
+                comboDesc.innerText = "현재 입력된 데이터로는 정액 또는 질 체액의 존재를 확정할 수 없습니다.";
+                refutationText.innerText = "증거 능력 미달";
+                legalLevelText.innerText = "판정 불가";
+            }
+        }
+    </script>
+</body>
+</html>

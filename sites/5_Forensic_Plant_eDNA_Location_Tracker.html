@@ -1,0 +1,684 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>법의식물학 eDNA 기반 범행 현장 특정 AI 시뮬레이터</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Google Inter Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        botany: {
+                            bg: '#08120e',
+                            card: '#11221a',
+                            cardLight: '#183025',
+                            border: '#244737',
+                            accent: '#10b981',
+                            highlight: '#34d399',
+                            pine: '#059669',
+                            cherry: '#f43f5e',
+                            mapBg: '#0b1913'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background-color: #08120e;
+            color: #ecfdf5;
+        }
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #11221a;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #244737;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #10b981;
+        }
+        .glass-card {
+            background: rgba(17, 34, 26, 0.82);
+            backdrop-filter: blur(14px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        input[type=range] {
+            accent-color: #10b981;
+        }
+        .map-pin-pulse {
+            animation: pulse-ring 1.8s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
+        }
+        @keyframes pulse-ring {
+            0% { transform: scale(0.95); opacity: 0.9; }
+            50% { transform: scale(1.4); opacity: 0.4; }
+            100% { transform: scale(0.95); opacity: 0.9; }
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col font-sans antialiased selection:bg-botany-accent selection:text-black">
+    <nav class="bg-slate-900 border-b border-slate-800 px-4 py-2 text-xs"><a href="../index.html" class="inline-flex items-center gap-1.5 text-slate-300 hover:text-white"><i class="fa-solid fa-house" aria-hidden="true"></i> 시뮬레이터 홈</a></nav>
+
+    <!-- 1. DEMO DISCLAIMER BANNER -->
+    <div class="bg-gradient-to-r from-emerald-600 via-teal-500 to-emerald-600 text-black py-2.5 px-4 text-center font-bold text-xs sm:text-sm shadow-md tracking-wide flex items-center justify-center gap-2 z-50">
+        <i class="fa-solid fa-triangle-exclamation text-base animate-pulse"></i>
+        <span>⚠️ 본 웹페이지는 과학수사 교육 및 법의식물학(eDNA) 장소 추적 이해를 돕기 위한 데모 시뮬레이터입니다. (DEMO ONLY - NOT FOR REAL FORENSIC USE)</span>
+    </div>
+
+    <!-- HEADER -->
+    <header class="border-b border-emerald-900/60 bg-botany-bg/90 sticky top-0 z-40 backdrop-blur">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex flex-col md:flex-row justify-between items-center gap-3">
+            <div class="flex items-center gap-3">
+                <div class="p-2.5 bg-botany-accent/10 border border-botany-accent/30 rounded-xl text-botany-accent">
+                    <i class="fa-solid fa-tree text-2xl"></i>
+                </div>
+                <div>
+                    <h1 class="text-lg sm:text-xl font-bold text-white tracking-tight flex items-center gap-2">
+                        Forensic Plant eDNA Location Tracker
+                        <span class="text-xs font-semibold px-2 py-0.5 rounded bg-botany-accent/20 text-botany-accent border border-botany-accent/40">SVM / RF Model</span>
+                    </h1>
+                    <p class="text-xs text-emerald-300/70">rbcL / matK / ITS2 메타바코딩 NGS 데이터 기반 범행 현장 산악 특정 시스템</p>
+                </div>
+            </div>
+
+            <!-- PRESET SCENARIOS -->
+            <div class="flex flex-wrap items-center justify-center gap-2">
+                <span class="text-xs text-gray-400 font-medium mr-1 hidden sm:inline">사건 시나리오:</span>
+                <button onclick="loadPreset('seorak')" class="px-3 py-1.5 text-xs font-medium rounded-lg bg-emerald-950 hover:bg-emerald-900 text-emerald-300 border border-emerald-700/60 transition flex items-center gap-1">
+                    <i class="fa-solid fa-mountain"></i> 설악산 (봄)
+                </button>
+                <button onclick="loadPreset('bukhan')" class="px-3 py-1.5 text-xs font-medium rounded-lg bg-amber-950 hover:bg-amber-900 text-amber-300 border border-amber-700/60 transition flex items-center gap-1">
+                    <i class="fa-solid fa-leaf"></i> 북한산 (가을)
+                </button>
+                <button onclick="loadPreset('hallasan')" class="px-3 py-1.5 text-xs font-medium rounded-lg bg-sky-950 hover:bg-sky-900 text-sky-300 border border-sky-700/60 transition flex items-center gap-1">
+                    <i class="fa-solid fa-snowflake"></i> 한라산 (겨울)
+                </button>
+                <button onclick="loadPreset('palgong')" class="px-3 py-1.5 text-xs font-medium rounded-lg bg-teal-950 hover:bg-teal-900 text-teal-300 border border-teal-700/60 transition flex items-center gap-1">
+                    <i class="fa-solid fa-water"></i> 팔공산 (여름 계곡)
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- MAIN CONTENT -->
+    <main class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+        <!-- LEFT COLUMN: INPUT CONTROLS & MARKERS (5 cols) -->
+        <section class="lg:col-span-5 flex flex-col gap-5">
+
+            <!-- ENVIRONMENT & SAMPLE SETTINGS CARD -->
+            <div class="glass-card rounded-2xl p-5 shadow-xl">
+                <h2 class="text-xs font-bold text-botany-accent uppercase tracking-wider mb-3 flex items-center gap-1.5">
+                    <i class="fa-solid fa-sliders"></i> 1. 계절 및 검체 시료 조건 설정
+                </h2>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3 text-xs">
+                    <div>
+                        <label class="block text-xs font-medium text-emerald-200/90 mb-1">채취 계절 (Season)</label>
+                        <select id="seasonSelect" onchange="onSeasonChange()" class="w-full bg-botany-bg border border-botany-border text-emerald-100 text-xs rounded-xl p-2.5 focus:ring-2 focus:ring-botany-accent outline-none">
+                            <option value="spring" selected>봄 (Spring - 진달래/개나리/송화가루)</option>
+                            <option value="summer">여름 (Summer - 신갈/단풍/풀꽃 식생)</option>
+                            <option value="autumn">가을 (Autumn - 억새/단풍/낙엽 eDNA)</option>
+                            <option value="winter">겨울 (Winter - 구상나무/상록수/휴면 지표)</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-medium text-emerald-200/90 mb-1">검체 부위 (Sample Specimen)</label>
+                        <select id="specimenSelect" onchange="calculateMatching()" class="w-full bg-botany-bg border border-botany-border text-emerald-100 text-xs rounded-xl p-2.5 focus:ring-2 focus:ring-botany-accent outline-none">
+                            <option value="shoes" selected>용의자 신발 밑창 흙 (Shoe Sole)</option>
+                            <option value="clothes">의류 표면 부착 꽃가루 (Clothing)</option>
+                            <option value="tires">차량 타이어 부목 흙 (Vehicle Tire)</option>
+                            <option value="tools">범행 도구 표면 조각 (Tool Surface)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="p-3 bg-emerald-950/40 rounded-xl border border-emerald-900/60 text-[11px] text-emerald-300/80 leading-relaxed">
+                    <i class="fa-solid fa-circle-info text-botany-accent mr-1"></i>
+                    계절별로 자생 식물의 꽃가루 비산량과 수목 잎 탈락 eDNA 비중이 자동 보정됩니다.
+                </div>
+            </div>
+
+            <!-- PLANT EDNA MARKER READ SLIDERS CARD -->
+            <div class="glass-card rounded-2xl p-5 shadow-xl flex-grow flex flex-col justify-between">
+                <div>
+                    <div class="flex justify-between items-center mb-3 border-b border-emerald-900/60 pb-2">
+                        <h2 class="text-sm font-semibold text-white flex items-center gap-2">
+                            <i class="fa-solid fa-dna text-botany-accent"></i>
+                            2. 대표 수목/초본류 eDNA Read (%)
+                        </h2>
+                        <button onclick="normalizeRatios()" class="text-xs text-botany-accent hover:underline flex items-center gap-1">
+                            <i class="fa-solid fa-wand-magic-sparkles"></i> 100% 정규화
+                        </button>
+                    </div>
+
+                    <div class="space-y-3 text-xs" id="plantSlidersContainer">
+                        <!-- Dynamic Sliders Rendered by JS -->
+                    </div>
+                </div>
+
+                <div class="mt-4 pt-3 border-t border-emerald-900/60 flex items-center justify-between text-xs">
+                    <span class="text-emerald-400/80">Total Read Count:</span>
+                    <span id="totalPercentBadge" class="font-bold px-2 py-0.5 rounded text-emerald-300 bg-emerald-950 border border-emerald-700">100.0% (정상)</span>
+                </div>
+            </div>
+
+        </section>
+
+        <!-- RIGHT COLUMN: KOREA MAP & AI PREDICTION (7 cols) -->
+        <section class="lg:col-span-7 flex flex-col gap-5">
+
+            <!-- KOREA MAP SPATIAL PINPOINT CARD -->
+            <div class="glass-card rounded-2xl p-5 shadow-xl relative">
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-3 border-b border-emerald-900/60 pb-2.5">
+                    <div>
+                        <h2 class="text-base font-semibold text-white flex items-center gap-2">
+                            <i class="fa-solid fa-map-location-dot text-botany-accent"></i>
+                            대한민국 주요 산악 eDNA 지형 공간 매핑 (Spatial Pinpoint)
+                        </h2>
+                        <p class="text-[11px] text-emerald-300/70">전국 국립공원/산악 생태 DB 위치 대비 샘플 일치 위치 표기</p>
+                    </div>
+                    <span id="seasonBadge" class="text-[11px] text-emerald-300 bg-emerald-950 px-2.5 py-1 rounded border border-emerald-800 font-medium">
+                        봄철 식생 모드
+                    </span>
+                </div>
+
+                <!-- SVG MAP CANVAS CONTAINER -->
+                <div class="relative w-full h-80 bg-botany-mapBg rounded-xl border border-emerald-950 overflow-hidden flex items-center justify-center p-2">
+                    
+                    <!-- Stylized South Korea SVG Vector Map -->
+                    <svg id="koreaSvgMap" viewBox="0 0 500 600" class="w-full h-full max-h-76 select-none">
+                        <!-- South Korea Coastline Outline -->
+                        <path d="M 180,60 L 260,70 L 320,110 L 370,160 L 350,220 L 380,280 L 390,360 L 370,420 L 320,460 L 280,450 L 250,470 L 200,430 L 170,390 L 150,320 L 130,260 L 140,200 L 120,140 Z" 
+                              fill="#13261d" stroke="#244737" stroke-width="2" stroke-dasharray="4 2"/>
+                        
+                        <!-- Jeju Island Outline -->
+                        <path d="M 160,530 C 180,520 220,520 240,535 C 230,550 180,555 160,530 Z" 
+                              fill="#13261d" stroke="#244737" stroke-width="1.5"/>
+
+                        <!-- Mountain DB Node Spots -->
+                        <!-- 1. 설악산 (Seoraksan) -->
+                        <g class="cursor-pointer" onclick="selectMountain('seorak')">
+                            <circle cx="310" cy="115" r="7" fill="#10b981" fill-opacity="0.2"/>
+                            <circle id="dot_seorak" cx="310" cy="115" r="4" fill="#10b981"/>
+                            <text x="320" y="118" fill="#a7f3d0" font-size="11" font-weight="bold">설악산</text>
+                        </g>
+
+                        <!-- 2. 북한산 (Bukhansan) -->
+                        <g class="cursor-pointer" onclick="selectMountain('bukhan')">
+                            <circle cx="210" cy="180" r="7" fill="#10b981" fill-opacity="0.2"/>
+                            <circle id="dot_bukhan" cx="210" cy="180" r="4" fill="#10b981"/>
+                            <text x="160" y="184" fill="#a7f3d0" font-size="11" font-weight="bold">북한산</text>
+                        </g>
+
+                        <!-- 3. 북악산 (Bugaksan) -->
+                        <g class="cursor-pointer" onclick="selectMountain('bugak')">
+                            <circle cx="218" cy="192" r="6" fill="#10b981" fill-opacity="0.2"/>
+                            <circle id="dot_bugak" cx="218" cy="192" r="3.5" fill="#10b981"/>
+                            <text x="226" y="196" fill="#6ee7b7" font-size="10">북악산</text>
+                        </g>
+
+                        <!-- 4. 내장산 (Naejangsan) -->
+                        <g class="cursor-pointer" onclick="selectMountain('naejang')">
+                            <circle cx="205" cy="370" r="7" fill="#10b981" fill-opacity="0.2"/>
+                            <circle id="dot_naejang" cx="205" cy="370" r="4" fill="#10b981"/>
+                            <text x="150" y="374" fill="#a7f3d0" font-size="11" font-weight="bold">내장산</text>
+                        </g>
+
+                        <!-- 5. 팔공산 (Palgongsan) -->
+                        <g class="cursor-pointer" onclick="selectMountain('palgong')">
+                            <circle cx="320" cy="340" r="7" fill="#10b981" fill-opacity="0.2"/>
+                            <circle id="dot_palgong" cx="320" cy="340" r="4" fill="#10b981"/>
+                            <text x="330" y="344" fill="#a7f3d0" font-size="11" font-weight="bold">팔공산</text>
+                        </g>
+
+                        <!-- 6. 한라산 (Hallasan) -->
+                        <g class="cursor-pointer" onclick="selectMountain('hallasan')">
+                            <circle cx="200" cy="535" r="7" fill="#10b981" fill-opacity="0.2"/>
+                            <circle id="dot_hallasan" cx="200" cy="535" r="4" fill="#10b981"/>
+                            <text x="210" y="539" fill="#a7f3d0" font-size="11" font-weight="bold">한라산</text>
+                        </g>
+
+                        <!-- DYNAMIC HIGHLIGHT TARGET PIN OVERLAY -->
+                        <g id="targetPinOverlay" transform="translate(310, 115)" class="transition-all duration-700">
+                            <circle r="18" fill="#f43f5e" fill-opacity="0.25" class="map-pin-pulse"/>
+                            <circle r="10" fill="#f43f5e" fill-opacity="0.5"/>
+                            <circle r="5" fill="#ffffff"/>
+                            <line x1="0" y1="-14" x2="0" y2="14" stroke="#f43f5e" stroke-width="1.5"/>
+                            <line x1="-14" y1="0" x2="14" y2="0" stroke="#f43f5e" stroke-width="1.5"/>
+                        </g>
+                    </svg>
+
+                    <!-- Overlay Map Info Legend -->
+                    <div class="absolute bottom-3 left-3 bg-botany-bg/90 border border-emerald-900/80 rounded-lg p-2 text-[10px] space-y-1">
+                        <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span> 산악 생태 DB 노드</div>
+                        <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-rose-500 animate-ping"></span> 🎯 AI 추정 최고 유력 장소</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- AI EVALUATION RESULT & PROBABILITY DASHBOARD -->
+            <div class="grid grid-cols-1 md:grid-cols-12 gap-5">
+
+                <!-- Mountain Match Probabilities (5 cols) -->
+                <div class="md:col-span-5 glass-card rounded-2xl p-4 shadow-xl flex flex-col justify-between">
+                    <h3 class="text-xs font-bold text-emerald-200 mb-3 flex items-center gap-1.5">
+                        <i class="fa-solid fa-chart-bar text-botany-accent"></i> AI 공간 매칭 일치 확률
+                    </h3>
+
+                    <div class="space-y-2.5 text-xs" id="probabilityBarsContainer">
+                        <!-- Dynamic Probability Bars -->
+                    </div>
+
+                    <div class="mt-3 pt-2 border-t border-emerald-950 text-[10px] text-emerald-400/70">
+                        * Support Vector Machine (SVM) & Random Forest 모델 연산
+                    </div>
+                </div>
+
+                <!-- MAIN FORENSIC DECISION BOX (7 cols) -->
+                <div class="md:col-span-7 glass-card rounded-2xl p-5 shadow-xl border-l-4 border-l-botany-accent flex flex-col justify-between">
+                    <div>
+                        <span class="text-[10px] font-bold uppercase tracking-wider text-botany-accent">Forensic Spatial Identification</span>
+                        <h3 class="text-sm font-bold text-white mb-2">법의식물학 최종 감정 의견서</h3>
+
+                        <div id="decisionCard" class="p-3.5 rounded-xl bg-botany-bg/90 border border-emerald-900/80 mb-3">
+                            <div class="text-xs font-bold text-emerald-300 mb-1" id="decisionTitle">감정 분석 진행 중...</div>
+                            <p class="text-xs text-gray-300 leading-relaxed" id="decisionDetail">
+                                입력된 식물 eDNA Read 데이터 분석 중입니다.
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="space-y-2">
+                        <div class="flex items-center justify-between text-xs bg-botany-bg/60 p-2 rounded-lg border border-emerald-900">
+                            <span class="text-gray-400">생태 다양성 지수 (Shannon Index H'):</span>
+                            <span id="shannonIndexText" class="font-mono font-bold text-emerald-300">H' = 1.84 (풍부)</span>
+                        </div>
+                        <div class="flex items-center justify-between text-xs bg-botany-bg/60 p-2 rounded-lg border border-emerald-900">
+                            <span class="text-gray-400">법적 증거 입증 수준:</span>
+                            <span id="evidenceLevelBadge" class="font-bold px-2 py-0.5 rounded text-emerald-300 bg-emerald-950 border border-emerald-700">
+                                증거력 확보 (Strong)
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- FORENSIC BOTANY SOP GUIDELINE CARD -->
+            <div class="glass-card rounded-2xl p-5 shadow-xl">
+                <h3 class="text-xs font-bold text-white mb-2 flex items-center gap-2 border-b border-emerald-900/60 pb-2">
+                    <i class="fa-solid fa-clipboard-check text-botany-accent"></i>
+                    과학수사관 실무 가이드: 식물 eDNA 시료 채취 및 보존 표준절차 (SOP & Chain of Custody)
+                </h3>
+                <ul class="text-xs text-emerald-200/90 space-y-1.5 list-disc list-inside leading-relaxed">
+                    <li><strong>채취 시 교차 오염 방지:</strong> 신발 밑창이나 타이어 흙 채취 시 멸균 스패출러(Spatula)를 사용하고, 1회용 장갑을 교체하여 주변 미세 꽃가루 교차 오염을 차단합니다.</li>
+                    <li><strong>시료 보존 및 동결 보관:</strong> eDNA의 효소 분해를 막기 위해 채취 즉시 DNA Stabilization Buffer(RNAlater 등)에 침지하거나 $-20^\circ\text{C}$ 이하 cryogenic 용기에 보관합니다.</li>
+                    <li><strong>증거 관리 연쇄성(Chain of Custody):</strong> 현장 채취 시각, GPS 좌표, 기상/계절 데이터 및 봉인 인장 사진을 작성하여 법정 증거 능력을 확보합니다.</li>
+                </ul>
+            </div>
+
+        </section>
+
+    </main>
+
+    <!-- FOOTER -->
+    <footer class="border-t border-emerald-950 py-3.5 text-center text-xs text-emerald-600">
+        <p>법의식물학 & 식물 eDNA 범행 현장 특정 AI 시뮬레이터 | Educational Forensic Science Web App</p>
+        <p class="mt-1">© Yeonbum Kim · <a href="mailto:yeonbumk@gmail.com" class="underline underline-offset-2 hover:text-slate-300">yeonbumk@gmail.com</a></p>
+    </footer>
+
+    <!-- JAVASCRIPT LOGIC -->
+    <script>
+        // 7 Representative Plant Species Metadata
+        const PLANTS = [
+            { id: 'p_pinus', name: '소나무 (Pinus densiflora)', type: '수목', color: '#10b981', defaultRatio: 40 },
+            { id: 'p_azalea', name: '진달래 / 철쭉 (Rhododendron)', type: '초본/수목', color: '#f43f5e', defaultRatio: 30 },
+            { id: 'p_oak', name: '신갈나무 / 참나무 (Quercus)', type: '활엽수', color: '#f59e0b', defaultRatio: 12 },
+            { id: 'p_maple', name: '단풍나무 (Acer palmatum)', type: '활엽수', color: '#ef4444', defaultRatio: 8 },
+            { id: 'p_fir', name: '구상나무 (Abies koreana)', type: '고산 상록수', color: '#06b6d4', defaultRatio: 2 },
+            { id: 'p_grass', name: '억새 / 벼과 (Miscanthus)', type: '초본류', color: '#84cc16', defaultRatio: 5 },
+            { id: 'p_violet', name: '제비꽃 / 야생화 (Viola)', type: '야생화', color: '#a855f7', defaultRatio: 3 }
+        ];
+
+        // Mountain Ecological Profiles & SVG Coordinates
+        const MOUNTAINS = {
+            seorak: {
+                name: '설악산 (Seoraksan)',
+                x: 310, y: 115,
+                detail: '설악산 울산바위/외설악 탐방로 구역',
+                weights: {
+                    spring: { p_azalea: 0.40, p_pinus: 0.35, p_oak: 0.12, p_maple: 0.05, p_fir: 0.03, p_grass: 0.03, p_violet: 0.02 },
+                    summer: { p_pinus: 0.45, p_oak: 0.25, p_azalea: 0.10, p_maple: 0.10, p_grass: 0.05, p_fir: 0.03, p_violet: 0.02 },
+                    autumn: { p_maple: 0.35, p_oak: 0.30, p_pinus: 0.20, p_grass: 0.08, p_azalea: 0.03, p_fir: 0.02, p_violet: 0.02 },
+                    winter: { p_pinus: 0.60, p_fir: 0.20, p_oak: 0.10, p_maple: 0.04, p_grass: 0.03, p_azalea: 0.02, p_violet: 0.01 }
+                }
+            },
+            bukhan: {
+                name: '북한산 (Bukhansan)',
+                x: 210, y: 180,
+                detail: '북한산 백운대/우이동 탐방로 구역',
+                weights: {
+                    spring: { p_pinus: 0.45, p_azalea: 0.25, p_oak: 0.18, p_maple: 0.05, p_grass: 0.03, p_fir: 0.00, p_violet: 0.04 },
+                    summer: { p_oak: 0.40, p_pinus: 0.35, p_maple: 0.12, p_grass: 0.06, p_azalea: 0.04, p_fir: 0.00, p_violet: 0.03 },
+                    autumn: { p_oak: 0.42, p_maple: 0.28, p_pinus: 0.18, p_grass: 0.08, p_azalea: 0.02, p_fir: 0.00, p_violet: 0.02 },
+                    winter: { p_pinus: 0.70, p_oak: 0.18, p_maple: 0.06, p_grass: 0.04, p_azalea: 0.01, p_fir: 0.00, p_violet: 0.01 }
+                }
+            },
+            bugak: {
+                name: '북악산 (Bugaksan)',
+                x: 218, y: 192,
+                detail: '북악산 한양도성 성곽 탐방로',
+                weights: {
+                    spring: { p_pinus: 0.50, p_azalea: 0.20, p_oak: 0.15, p_violet: 0.08, p_maple: 0.04, p_grass: 0.03, p_fir: 0.00 },
+                    summer: { p_pinus: 0.45, p_oak: 0.35, p_violet: 0.08, p_maple: 0.07, p_grass: 0.03, p_azalea: 0.02, p_fir: 0.00 },
+                    autumn: { p_pinus: 0.40, p_oak: 0.35, p_maple: 0.15, p_grass: 0.06, p_violet: 0.02, p_azalea: 0.02, p_fir: 0.00 },
+                    winter: { p_pinus: 0.75, p_oak: 0.15, p_maple: 0.05, p_grass: 0.03, p_violet: 0.01, p_azalea: 0.01, p_fir: 0.00 }
+                }
+            },
+            naejang: {
+                name: '내장산 (Naejangsan)',
+                x: 205, y: 370,
+                detail: '내장산 단풍 수목 군락지 구역',
+                weights: {
+                    spring: { p_maple: 0.30, p_azalea: 0.30, p_oak: 0.25, p_pinus: 0.10, p_grass: 0.03, p_violet: 0.02, p_fir: 0.00 },
+                    summer: { p_maple: 0.38, p_oak: 0.35, p_pinus: 0.15, p_grass: 0.06, p_azalea: 0.03, p_violet: 0.03, p_fir: 0.00 },
+                    autumn: { p_maple: 0.58, p_oak: 0.25, p_grass: 0.08, p_pinus: 0.06, p_azalea: 0.01, p_violet: 0.02, p_fir: 0.00 },
+                    winter: { p_oak: 0.45, p_maple: 0.25, p_pinus: 0.22, p_grass: 0.05, p_azalea: 0.02, p_violet: 0.01, p_fir: 0.00 }
+                }
+            },
+            palgong: {
+                name: '팔공산 (Palgongsan)',
+                x: 320, y: 340,
+                detail: '팔공산 동화사/계곡 탐방로 구역',
+                weights: {
+                    spring: { p_pinus: 0.42, p_azalea: 0.28, p_oak: 0.18, p_violet: 0.06, p_grass: 0.04, p_maple: 0.02, p_fir: 0.00 },
+                    summer: { p_oak: 0.42, p_pinus: 0.38, p_grass: 0.08, p_violet: 0.06, p_maple: 0.04, p_azalea: 0.02, p_fir: 0.00 },
+                    autumn: { p_grass: 0.32, p_oak: 0.30, p_pinus: 0.24, p_maple: 0.10, p_azalea: 0.02, p_violet: 0.02, p_fir: 0.00 },
+                    winter: { p_pinus: 0.65, p_oak: 0.20, p_grass: 0.08, p_maple: 0.04, p_azalea: 0.02, p_violet: 0.01, p_fir: 0.00 }
+                }
+            },
+            hallasan: {
+                name: '한라산 (Hallasan)',
+                x: 200, y: 535,
+                detail: '한라산 백록담/고산 구상나무 자생 구역',
+                weights: {
+                    spring: { p_fir: 0.35, p_azalea: 0.30, p_grass: 0.15, p_pinus: 0.10, p_violet: 0.06, p_oak: 0.03, p_maple: 0.01 },
+                    summer: { p_fir: 0.40, p_grass: 0.25, p_azalea: 0.15, p_pinus: 0.10, p_violet: 0.05, p_oak: 0.04, p_maple: 0.01 },
+                    autumn: { p_grass: 0.40, p_fir: 0.35, p_pinus: 0.12, p_azalea: 0.05, p_violet: 0.04, p_oak: 0.03, p_maple: 0.01 },
+                    winter: { p_fir: 0.60, p_pinus: 0.20, p_grass: 0.12, p_azalea: 0.04, p_oak: 0.02, p_violet: 0.01, p_maple: 0.01 }
+                }
+            }
+        };
+
+        let activeSeason = 'spring';
+
+        // Init App
+        window.addEventListener('DOMContentLoaded', () => {
+            renderPlantInputs();
+            calculateMatching();
+        });
+
+        // Render Sliders in Left Panel
+        function renderPlantInputs() {
+            const container = document.getElementById('plantSlidersContainer');
+            container.innerHTML = '';
+
+            PLANTS.forEach(p => {
+                const item = document.createElement('div');
+                item.className = 'bg-botany-bg/60 p-2.5 rounded-xl border border-emerald-950 hover:border-emerald-800 transition';
+                item.innerHTML = `
+                    <div class="flex justify-between items-center mb-1">
+                        <label class="font-medium text-emerald-100 flex items-center gap-1.5">
+                            <span class="w-2.5 h-2.5 rounded-full inline-block" style="background-color: ${p.color}"></span>
+                            ${p.name}
+                        </label>
+                        <div class="flex items-center gap-1">
+                            <input type="number" id="num_${p.id}" min="0" max="100" step="1" value="${p.defaultRatio}"
+                                oninput="syncInput('${p.id}', 'num')"
+                                class="w-14 bg-botany-bg border border-emerald-900 text-right text-xs font-mono text-botany-accent rounded px-1.5 py-0.5 focus:outline-none">
+                            <span class="text-emerald-400/80 text-[11px]">%</span>
+                        </div>
+                    </div>
+                    <input type="range" id="range_${p.id}" min="0" max="100" step="1" value="${p.defaultRatio}"
+                        oninput="syncInput('${p.id}', 'range')"
+                        class="w-full h-1.5 bg-botany-bg rounded-lg appearance-none cursor-pointer">
+                `;
+                container.appendChild(item);
+            });
+        }
+
+        function syncInput(id, source) {
+            const range = document.getElementById(`range_${id}`);
+            const num = document.getElementById(`num_${id}`);
+
+            if (source === 'range') num.value = range.value;
+            else range.value = num.value;
+
+            checkTotalPercent();
+            calculateMatching();
+        }
+
+        function checkTotalPercent() {
+            let sum = 0;
+            PLANTS.forEach(p => {
+                sum += parseFloat(document.getElementById(`num_${p.id}`).value) || 0;
+            });
+            const badge = document.getElementById('totalPercentBadge');
+            if (Math.abs(sum - 100) < 0.5) {
+                badge.className = 'font-bold px-2 py-0.5 rounded text-emerald-300 bg-emerald-950 border border-emerald-700';
+                badge.innerText = `${sum.toFixed(1)}% (정상)`;
+            } else {
+                badge.className = 'font-bold px-2 py-0.5 rounded text-amber-300 bg-amber-950 border border-amber-700';
+                badge.innerText = `${sum.toFixed(1)}% (100% 권장)`;
+            }
+            return sum;
+        }
+
+        function normalizeRatios() {
+            let sum = checkTotalPercent();
+            if (sum === 0) return;
+            PLANTS.forEach(p => {
+                const num = document.getElementById(`num_${p.id}`);
+                const range = document.getElementById(`range_${p.id}`);
+                const val = ((parseFloat(num.value) / sum) * 100).toFixed(1);
+                num.value = val;
+                range.value = val;
+            });
+            checkTotalPercent();
+            calculateMatching();
+        }
+
+        function onSeasonChange() {
+            activeSeason = document.getElementById('seasonSelect').value;
+            const seasonNames = { spring: '봄철 식생 모드', summer: '여름철 식생 모드', autumn: '가을철 식생 모드', winter: '겨울철 식생 모드' };
+            document.getElementById('seasonBadge').innerText = seasonNames[activeSeason];
+            calculateMatching();
+        }
+
+        // Preset Scenario Loader
+        function loadPreset(key) {
+            let seasonKey = 'spring';
+            if (key === 'seorak') seasonKey = 'spring';
+            else if (key === 'bukhan') seasonKey = 'autumn';
+            else if (key === 'hallasan') seasonKey = 'winter';
+            else if (key === 'palgong') seasonKey = 'summer';
+
+            document.getElementById('seasonSelect').value = seasonKey;
+            activeSeason = seasonKey;
+            onSeasonChange();
+
+            const targetWeights = MOUNTAINS[key].weights[seasonKey];
+            PLANTS.forEach(p => {
+                const w = targetWeights[p.id] !== undefined ? targetWeights[p.id] * 100 : 0;
+                document.getElementById(`num_${p.id}`).value = w.toFixed(0);
+                document.getElementById(`range_${p.id}`).value = w.toFixed(0);
+            });
+
+            checkTotalPercent();
+            calculateMatching();
+        }
+
+        function selectMountain(key) {
+            loadPreset(key);
+        }
+
+        // MAIN AI SPATIAL MATCHING ENGINE
+        function calculateMatching() {
+            let total = checkTotalPercent();
+            const scale = total > 0 ? 100 / total : 1;
+
+            let userVector = {};
+            PLANTS.forEach(p => {
+                let v = parseFloat(document.getElementById(`num_${p.id}`).value) || 0;
+                userVector[p.id] = (v * scale) / 100;
+            });
+
+            // Calculate Cosine Similarity & Distance to each Mountain Profile
+            let scores = {};
+            let maxScore = -1;
+            let bestMountainKey = 'seorak';
+
+            Object.keys(MOUNTAINS).forEach(mKey => {
+                const m = MOUNTAINS[mKey];
+                const ref = m.weights[activeSeason];
+
+                let dotProduct = 0;
+                let normUser = 0;
+                let normRef = 0;
+
+                PLANTS.forEach(p => {
+                    const u = userVector[p.id] || 0;
+                    const r = ref[p.id] || 0;
+                    dotProduct += u * r;
+                    normUser += u * u;
+                    normRef += r * r;
+                });
+
+                let sim = (normUser > 0 && normRef > 0) ? (dotProduct / (Math.sqrt(normUser) * Math.sqrt(normRef))) : 0;
+                
+                // Exponential scaling to emphasize sharp top match
+                let finalProb = Math.pow(sim, 2.8) * 100;
+                scores[mKey] = finalProb;
+
+                if (finalProb > maxScore) {
+                    maxScore = finalProb;
+                    bestMountainKey = mKey;
+                }
+            });
+
+            // Normalize Probabilities to Sum = 100%
+            let probSum = Object.values(scores).reduce((a, b) => a + b, 0);
+            let normalizedProbs = {};
+            Object.keys(scores).forEach(k => {
+                normalizedProbs[k] = probSum > 0 ? (scores[k] / probSum) * 100 : 0;
+            });
+
+            // Calculate Shannon Diversity Index H'
+            let shannonH = 0;
+            PLANTS.forEach(p => {
+                const pi = userVector[p.id];
+                if (pi > 0) {
+                    shannonH -= pi * Math.log(pi);
+                }
+            });
+
+            // Update Map Target Pin Position
+            const targetM = MOUNTAINS[bestMountainKey];
+            const pinOverlay = document.getElementById('targetPinOverlay');
+            pinOverlay.setAttribute('transform', `translate(${targetM.x}, ${targetM.y})`);
+
+            // Update Map Node Highlights
+            Object.keys(MOUNTAINS).forEach(k => {
+                const dot = document.getElementById(`dot_${k}`);
+                if (dot) {
+                    if (k === bestMountainKey) {
+                        dot.setAttribute('fill', '#f43f5e');
+                        dot.setAttribute('r', '6');
+                    } else {
+                        dot.setAttribute('fill', '#10b981');
+                        dot.setAttribute('r', '4');
+                    }
+                }
+            });
+
+            // Render UI
+            updateUI(bestMountainKey, normalizedProbs, shannonH);
+        }
+
+        function updateUI(bestKey, probs, shannonH) {
+            const bestM = MOUNTAINS[bestKey];
+            const topProb = probs[bestKey];
+
+            // Render Probability Bars
+            const container = document.getElementById('probabilityBarsContainer');
+            container.innerHTML = '';
+
+            // Sort mountains by prob descending
+            const sortedKeys = Object.keys(probs).sort((a, b) => probs[b] - probs[a]);
+
+            sortedKeys.forEach(k => {
+                const m = MOUNTAINS[k];
+                const p = probs[k];
+                const isBest = k === bestKey;
+
+                const div = document.createElement('div');
+                div.innerHTML = `
+                    <div class="flex justify-between text-[11px] mb-0.5">
+                        <span class="font-medium ${isBest ? 'text-rose-400 font-bold' : 'text-emerald-200'}">${m.name}</span>
+                        <span class="font-mono font-bold ${isBest ? 'text-rose-400' : 'text-emerald-400'}">${p.toFixed(1)}%</span>
+                    </div>
+                    <div class="w-full h-1.5 bg-botany-bg rounded-full overflow-hidden">
+                        <div class="h-full ${isBest ? 'bg-rose-500' : 'bg-emerald-600'} transition-all duration-500" style="width: ${p}%"></div>
+                    </div>
+                `;
+                container.appendChild(div);
+            });
+
+            // Update Decision Text
+            const decisionTitle = document.getElementById('decisionTitle');
+            const decisionDetail = document.getElementById('decisionDetail');
+            const badge = document.getElementById('evidenceLevelBadge');
+
+            if (topProb >= 70) {
+                decisionTitle.className = "text-xs font-bold text-rose-400 mb-1";
+                decisionTitle.innerText = `🎯 범행/도주 장소 특정: ${bestM.name} (일치 확률: ${topProb.toFixed(1)}%)`;
+                decisionDetail.innerHTML = `검체 eDNA 분석 결과, 식물 타깃 마커 분포가 <strong>${bestM.detail}</strong>에 고유하게 분포하는 생태 군집 데이터베이스와 70% 이상 정밀 일치합니다.`;
+                badge.className = "font-bold px-2 py-0.5 rounded text-emerald-300 bg-emerald-950 border border-emerald-700";
+                badge.innerText = "증거력 확고 (Strong)";
+            } else if (topProb >= 45) {
+                decisionTitle.className = "text-xs font-bold text-amber-400 mb-1";
+                decisionTitle.innerText = `⚠️ 추정 장소: ${bestM.name} 주변 구역 (일치 확률: ${topProb.toFixed(1)}%)`;
+                decisionDetail.innerHTML = `식물 eDNA 지문이 ${bestM.name} 인근 생태와 우세하게 일치하나 타 산악 구역과의 혼합 가능성이 존재합니다. 보강 시료 채취를 권장합니다.`;
+                badge.className = "font-bold px-2 py-0.5 rounded text-amber-300 bg-amber-950 border border-amber-700";
+                badge.innerText = "보강 수사 필요 (Moderate)";
+            } else {
+                decisionTitle.className = "text-xs font-bold text-gray-400 mb-1";
+                decisionTitle.innerText = `🔍 특정 장소 미판정 (복합 산악 식생 감지)`;
+                decisionDetail.innerHTML = `현재 입력된 식물 eDNA Read 조합은 특정 산악 구역 식생 DB에 단독 매치되지 않습니다. 추가 엽록체 마커 NGS 시퀀싱이 필요합니다.`;
+                badge.className = "font-bold px-2 py-0.5 rounded text-gray-400 bg-gray-900 border border-gray-700";
+                badge.innerText = "판정 불능 (Inconclusive)";
+            }
+
+            document.getElementById('shannonIndexText').innerText = `H' = ${shannonH.toFixed(2)} (${shannonH > 1.5 ? '다양성 높음' : '단일종 우점'})`;
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>유전체(SNP/eDNA) 기반 동식물 원산지·개체군 판별 AI 시뮬레이터</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Google Inter Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        dna: {
+                            bg: '#090d16',
+                            card: '#111827',
+                            cardLight: '#1f2937',
+                            border: '#374151',
+                            accent: '#00f5d4',
+                            domestic: '#3b82f6',
+                            imported: '#ef4444',
+                            endemic: '#10b981',
+                            gold: '#f59e0b'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background-color: #090d16;
+            color: #f3f4f6;
+        }
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #111827;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #374151;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #00f5d4;
+        }
+        .glass-card {
+            background: rgba(17, 24, 39, 0.8);
+            backdrop-filter: blur(14px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        input[type=range] {
+            accent-color: #00f5d4;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col font-sans antialiased selection:bg-dna-accent selection:text-black">
+    <nav class="bg-slate-900 border-b border-slate-800 px-4 py-2 text-xs"><a href="../index.html" class="inline-flex items-center gap-1.5 text-slate-300 hover:text-white"><i class="fa-solid fa-house" aria-hidden="true"></i> 시뮬레이터 홈</a></nav>
+
+    <!-- 1. DEMO DISCLAIMER BANNER -->
+    <div class="bg-gradient-to-r from-amber-600 via-amber-500 to-amber-600 text-black py-2.5 px-4 text-center font-bold text-xs sm:text-sm shadow-md tracking-wide flex items-center justify-center gap-2 z-50">
+        <i class="fa-solid fa-triangle-exclamation text-base animate-pulse"></i>
+        <span>⚠️ 본 웹페이지는 과학수사 교육 및 유전체(SNP/eDNA) 원산지 추적 이해를 돕기 위한 데모 시뮬레이터입니다. (DEMO ONLY - NOT FOR REAL FORENSIC USE)</span>
+    </div>
+
+    <!-- HEADER -->
+    <header class="border-b border-gray-800 bg-dna-bg/90 sticky top-0 z-40 backdrop-blur">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex flex-col md:flex-row justify-between items-center gap-3">
+            <div class="flex items-center gap-3">
+                <div class="p-2.5 bg-dna-accent/10 border border-dna-accent/30 rounded-xl text-dna-accent">
+                    <i class="fa-solid fa-dna text-2xl"></i>
+                </div>
+                <div>
+                    <h1 class="text-lg sm:text-xl font-bold text-white tracking-tight flex items-center gap-2">
+                        Targeted SNP & eDNA Origin Identification
+                        <span class="text-xs font-semibold px-2 py-0.5 rounded bg-dna-accent/20 text-dna-accent border border-dna-accent/40">Forensic AI</span>
+                    </h1>
+                    <p class="text-xs text-gray-400">동식물 유전체 타겟 SNP 및 서식지 자생 DNA 기반 원산지·개체군 판별 시스템</p>
+                </div>
+            </div>
+
+            <!-- PRESET BUTTONS -->
+            <div class="flex flex-wrap items-center justify-center gap-2">
+                <span class="text-xs text-gray-400 font-medium mr-1 hidden sm:inline">테스트 프리셋:</span>
+                <button onclick="loadPreset('domestic')" class="px-3 py-1.5 text-xs font-medium rounded-lg bg-blue-950/70 hover:bg-blue-900 text-blue-300 border border-blue-700/50 transition flex items-center gap-1">
+                    <i class="fa-solid fa-flag"></i> 국산(정통 산지)
+                </button>
+                <button onclick="loadPreset('imported')" class="px-3 py-1.5 text-xs font-medium rounded-lg bg-rose-950/70 hover:bg-rose-900 text-rose-300 border border-rose-700/50 transition flex items-center gap-1">
+                    <i class="fa-solid fa-plane"></i> 수입산(위변조 의혹)
+                </button>
+                <button onclick="loadPreset('mixed')" class="px-3 py-1.5 text-xs font-medium rounded-lg bg-amber-950/70 hover:bg-amber-900 text-amber-300 border border-amber-700/50 transition flex items-center gap-1">
+                    <i class="fa-solid fa-layer-group"></i> 혼합/원산지 조작
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- MAIN CONTENT -->
+    <main class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+        <!-- LEFT COLUMN: CONTROLS & MARKER INPUTS (5 cols) -->
+        <section class="lg:col-span-5 flex flex-col gap-5">
+
+            <!-- TARGET SPECIES SELECTOR & CASE INFO -->
+            <div class="glass-card rounded-2xl p-5 shadow-xl">
+                <h2 class="text-xs font-bold text-dna-accent uppercase tracking-wider mb-3 flex items-center gap-1.5">
+                    <i class="fa-solid fa-microscope"></i> 1. 검정 타깃 품종 및 현장 시료 선택
+                </h2>
+
+                <div class="space-y-3">
+                    <div>
+                        <label class="block text-xs font-medium text-gray-300 mb-1.5">감정 대상 동식물 (Target Species)</label>
+                        <select id="targetSpecies" onchange="changeSpecies()" class="w-full bg-gray-900 border border-gray-700 text-gray-200 text-xs rounded-xl p-2.5 focus:ring-2 focus:ring-dna-accent outline-none">
+                            <option value="scallop" selected>가리비 (Patinopecten yessoensis) - 동해산 vs 수입산</option>
+                            <option value="beef">쇠고기 (Bos taurus) - 국산 한우 vs 수입산 쇠고기</option>
+                            <option value="ginseng">산양삼 / 인삼 (Panax ginseng) - 국내 자생산 vs 외국산</option>
+                        </select>
+                    </div>
+
+                    <div class="p-3 bg-gray-900/80 rounded-xl border border-gray-800 text-xs text-gray-300">
+                        <span id="speciesCaseDesc" class="leading-relaxed">
+                            수입산 수산물을 국내산으로 위조 판매한 혐의. 4종 타깃 유전자(SNP 1,2,3 및 부착 eDNA) 분석 실시.
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- DNA MARKER INPUT CARD -->
+            <div class="glass-card rounded-2xl p-5 shadow-xl flex-grow flex flex-col justify-between">
+                <div>
+                    <div class="flex justify-between items-center mb-4 border-b border-gray-700/60 pb-2.5">
+                        <h2 class="text-base font-semibold text-white flex items-center gap-2">
+                            <i class="fa-solid fa-sliders text-dna-accent"></i>
+                            2. 유전체 마커 데이터 입력 (%)
+                        </h2>
+                        <span class="text-xs text-gray-400">Targeted NGS / qPCR</span>
+                    </div>
+
+                    <!-- Marker Sliders Container -->
+                    <div class="space-y-3.5 text-xs" id="markersContainer">
+                        <!-- Dynamically Generated Sliders -->
+                    </div>
+                </div>
+
+                <div class="mt-4 pt-3 border-t border-gray-800 flex items-center justify-between text-xs">
+                    <span class="text-gray-400">알고리즘 가중치 상태:</span>
+                    <span id="dataStatusBadge" class="font-bold px-2 py-0.5 rounded text-emerald-400 bg-emerald-950/60 border border-emerald-800">균형 알고리즘 (Bias Fix)</span>
+                </div>
+            </div>
+
+        </section>
+
+        <!-- RIGHT COLUMN: PCA PLOT, AI ESTIMATION, LEGAL GUIDELINE (7 cols) -->
+        <section class="lg:col-span-7 flex flex-col gap-5">
+
+            <!-- PCA 2D SCATTER PLOT CARD -->
+            <div class="glass-card rounded-2xl p-5 shadow-xl">
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-3 border-b border-gray-700/60 pb-2.5">
+                    <div>
+                        <h2 class="text-base font-semibold text-white flex items-center gap-2">
+                            <i class="fa-solid fa-diagram-project text-dna-accent"></i>
+                            PCoA / PCA 유전적 거리 클러스터링 (Genomic Distance)
+                        </h2>
+                        <p class="text-[11px] text-gray-400">수입산 DB (- 영역) vs 국산 DB (+ 영역) 2차원 공간 맵핑</p>
+                    </div>
+                    <span class="text-[11px] text-gray-400 bg-gray-900 px-2 py-1 rounded border border-gray-800 font-mono">
+                        PCoA Axis 1 (72.4%) | PCoA Axis 2 (18.2%)
+                    </span>
+                </div>
+
+                <!-- Canvas for PCA Scatter -->
+                <div class="relative w-full h-64 sm:h-72">
+                    <canvas id="pcaChart"></canvas>
+                </div>
+
+                <div class="mt-3 flex flex-wrap justify-center gap-4 text-[11px] text-gray-300 bg-gray-900/60 py-2 rounded-xl border border-gray-800">
+                    <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-red-500"></span> 수입산 참조 DB 집단 (-3.5 ~ -1.0)</span>
+                    <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-blue-500"></span> 국산 참조 DB 집단 (+1.0 ~ +3.5)</span>
+                    <span class="flex items-center gap-1.5 font-bold text-white"><span class="w-3 h-3 rounded-full bg-emerald-400 ring-2 ring-white animate-ping"></span> 🎯 현장 검체 시료 (Sample X)</span>
+                </div>
+            </div>
+<!-- ... existing code -->
+    <footer class="border-t border-slate-800 py-3.5 text-center text-xs text-slate-500">
+        <p class="mt-1">© Yeonbum Kim · <a href="mailto:yeonbumk@gmail.com" class="underline underline-offset-2 hover:text-slate-300">yeonbumk@gmail.com</a></p>
+    </footer>
+
+    <!-- JAVASCRIPT LOGIC -->
+    <script>
+        // Species Database Definition & 4 Targeted Markers
+        const SPECIES_DB = {
+            scallop: {
+                name: "가리비 (Patinopecten yessoensis)",
+                desc: "수입산 가리비를 국내 연안산으로 위조 판매한 혐의. 4종 타깃 마커(SNP1, SNP2, SNP3, eDNA)를 통합 판별.",
+                markers: [
+                    { id: 'snp1', name: 'SNP 1 (국내산 특이 알릴 A %)', defaultRatio: 85 },
+                    { id: 'snp2', name: 'SNP 2 (국내산 특이 변이 G %)', defaultRatio: 80 },
+                    { id: 'snp3', name: 'SNP 3 (수입산 특이 변이 T %)', defaultRatio: 10 },
+                    { id: 'edna', name: '부착 eDNA (국내 연안 자생종 Read %)', defaultRatio: 75 }
+                ]
+            },
+            beef: {
+                name: "쇠고기 (Bos taurus)",
+                desc: "수입산 냉동 쇠고기를 한우 등심으로 위변조한 사건. 한우 유전적 지표 및 수입 품종 마커 분석.",
+                markers: [
+                    { id: 'snp1', name: 'SNP 1 (한우 고유 대립유전자 A %)', defaultRatio: 90 },
+                    { id: 'snp2', name: 'SNP 2 (한우 모색 변이 G %)', defaultRatio: 85 },
+                    { id: 'snp3', name: 'SNP 3 (수입 품종 특이 변이 T %)', defaultRatio: 5 },
+                    { id: 'edna', name: '부착 eDNA (국내 사료/축사 마커 %)', defaultRatio: 80 }
+                ]
+            },
+            ginseng: {
+                name: "산양삼 / 인삼 (Panax ginseng)",
+                desc: "외국산 인삼을 국내 산양삼으로 가공 판매. 엽록체 및 산림 토양 자생 eDNA 분석.",
+                markers: [
+                    { id: 'snp1', name: 'SNP 1 (국내 자생종 matK-A %)', defaultRatio: 88 },
+                    { id: 'snp2', name: 'SNP 2 (국나 계통 rbcL-G %)', defaultRatio: 82 },
+                    { id: 'snp3', name: 'SNP 3 (외국 품종 특이 변이 T %)', defaultRatio: 12 },
+                    { id: 'edna', name: '부착 eDNA (국내 침엽수림 토양 Read %)', defaultRatio: 78 }
+                ]
+            }
+        };
+
+        // Reference PCoA Coordinates for Clusters
+        const REF_CLUSTERS = {
+            imported: { cx: -2.3, cy: 0.2, color: '#ef4444', label: '수입산 참조 DB' },
+            domestic: { cx: 2.3, cy: -0.2, color: '#3b82f6', label: '국산 참조 DB' }
+        };
+
+        function generatePoints(cx, cy, count, spread) {
+            let pts = [];
+            for (let i = 0; i < count; i++) {
+                pts.push({
+                    x: cx + (Math.random() - 0.5) * spread,
+                    y: cy + (Math.random() - 0.5) * spread
+                });
+            }
+            return pts;
+        }
+
+        const REF_DB_POINTS = {
+            imported: generatePoints(REF_CLUSTERS.imported.cx, REF_CLUSTERS.imported.cy, 22, 1.4),
+            domestic: generatePoints(REF_CLUSTERS.domestic.cx, REF_CLUSTERS.domestic.cy, 22, 1.4)
+        };
+
+        let pcaChart = null;
+        let currentSpeciesKey = 'scallop';
+
+        // Init App
+        window.addEventListener('DOMContentLoaded', () => {
+            renderMarkerInputs();
+            initPCAChart();
+            calculateOrigin();
+        });
+
+        // Change Species Event
+        function changeSpecies() {
+            currentSpeciesKey = document.getElementById('targetSpecies').value;
+            const sp = SPECIES_DB[currentSpeciesKey];
+            document.getElementById('speciesCaseDesc').innerText = sp.desc;
+            renderMarkerInputs();
+            calculateOrigin();
+        }
+
+        // Render Inputs Dynamic
+        function renderMarkerInputs() {
+            const container = document.getElementById('markersContainer');
+            container.innerHTML = '';
+            const sp = SPECIES_DB[currentSpeciesKey];
+
+            sp.markers.forEach(m => {
+                const div = document.createElement('div');
+                div.className = 'bg-gray-900/60 p-3 rounded-xl border border-gray-800 hover:border-gray-700 transition';
+                div.innerHTML = `
+                    <div class="flex justify-between items-center mb-1.5">
+                        <label class="font-medium text-gray-200">${m.name}</label>
+                        <div class="flex items-center gap-1">
+                            <input type="number" id="num_${m.id}" min="0" max="100" step="1" value="${m.defaultRatio}"
+                                oninput="syncInput('${m.id}', 'num')"
+                                class="w-14 bg-gray-800 border border-gray-700 text-right text-xs font-mono text-dna-accent rounded px-1.5 py-0.5 focus:outline-none focus:border-dna-accent">
+                            <span class="text-gray-400 text-[11px]">%</span>
+                        </div>
+                    </div>
+                    <input type="range" id="range_${m.id}" min="0" max="100" step="1" value="${m.defaultRatio}"
+                        oninput="syncInput('${m.id}', 'range')"
+                        class="w-full h-1.5 bg-gray-800 rounded-lg appearance-none cursor-pointer">
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        function syncInput(id, source) {
+            const range = document.getElementById(`range_${id}`);
+            const num = document.getElementById(`num_${id}`);
+
+            if (source === 'range') num.value = range.value;
+            else range.value = num.value;
+
+            calculateOrigin();
+        }
+
+        // Preset Loaders
+        function loadPreset(type) {
+            let values = [];
+
+            if (type === 'domestic') {
+                values = [90, 85, 5, 85]; // High Domestic SNPs, Low Imported SNP3
+            } else if (type === 'imported') {
+                values = [10, 15, 90, 10]; // Low Domestic SNPs, High Imported SNP3
+            } else if (type === 'mixed') {
+                values = [50, 45, 45, 40]; // Intermediate values => ~50%
+            }
+
+            const sp = SPECIES_DB[currentSpeciesKey];
+            sp.markers.forEach((m, idx) => {
+                const val = values[idx] !== undefined ? values[idx] : 50;
+                document.getElementById(`num_${m.id}`).value = val;
+                document.getElementById(`range_${m.id}`).value = val;
+            });
+
+            calculateOrigin();
+        }
+
+        // Init PCA Chart using Chart.js
+        function initPCAChart() {
+            const ctx = document.getElementById('pcaChart').getContext('2d');
+            pcaChart = new Chart(ctx, {
+                type: 'scatter',
+                data: {
+                    datasets: [
+                        {
+                            label: '수입산 참조 DB',
+                            data: REF_DB_POINTS.imported,
+                            backgroundColor: 'rgba(239, 68, 68, 0.4)',
+                            borderColor: '#ef4444',
+                            borderWidth: 1,
+                            pointRadius: 5
+                        },
+                        {
+                            label: '국산 참조 DB',
+                            data: REF_DB_POINTS.domestic,
+                            backgroundColor: 'rgba(59, 130, 246, 0.4)',
+                            borderColor: '#3b82f6',
+                            borderWidth: 1,
+                            pointRadius: 5
+                        },
+                        {
+                            label: '현장 시료 (Sample X)',
+                            data: [{ x: 0, y: 0 }],
+                            backgroundColor: '#10b981',
+                            borderColor: '#ffffff',
+                            borderWidth: 2,
+                            pointRadius: 9,
+                            pointHoverRadius: 12
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return `${context.dataset.label}: (${context.parsed.x.toFixed(2)}, ${context.parsed.y.toFixed(2)})`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            title: { display: true, text: 'PCoA Axis 1 (-3.5: 수입산 ◄ ── ► +3.5: 국산)', color: '#9ca3af', font: { size: 10 } },
+                            grid: { color: 'rgba(255, 255, 255, 0.05)' },
+                            ticks: { color: '#6b7280', font: { size: 9 } },
+                            min: -4.0, max: 4.0
+                        },
+                        y: {
+                            title: { display: true, text: 'PCoA Axis 2 (개체군 내 변량)', color: '#9ca3af', font: { size: 10 } },
+                            grid: { color: 'rgba(255, 255, 255, 0.05)' },
+                            ticks: { color: '#6b7280', font: { size: 9 } },
+                            min: -3.0, max: 3.0
+                        }
+                    }
+                }
+            });
+        }
+
+        // Calculation Logic for Origin Determination (Balanced Algorithm)
+        function calculateOrigin() {
+            const snp1 = parseFloat(document.getElementById('num_snp1').value) || 0;
+            const snp2 = parseFloat(document.getElementById('num_snp2').value) || 0;
+            const snp3 = parseFloat(document.getElementById('num_snp3').value) || 0;
+            const edna = parseFloat(document.getElementById('num_edna').value) || 0;
+
+            // Score Formula: (SNP1*0.3 + SNP2*0.3 + eDNA*0.4) - (SNP3*1.0)
+            let score = (snp1 * 0.3 + snp2 * 0.3 + edna * 0.4) - (snp3 * 1.0);
+
+            // Domestic Probability (%)
+            let probDom = Math.max(0, Math.min(100, score));
+            let probImp = 100 - probDom;
+
+            // Map to PCoA Axis 1 (-3.5 ~ +3.5)
+            // probDom = 100% -> +2.8, probDom = 0% -> -2.8, 50% -> 0.0
+            let sampleX = ((probDom - 50) / 50) * 2.8;
+            let sampleY = ((snp1 - snp2) / 100) * 1.2; // Minor variance on Axis 2
+
+            if (pcaChart) {
+                pcaChart.data.datasets[2].data = [{ x: sampleX, y: sampleY }];
+                pcaChart.update();
+            }
+
+            // Update UI Bars and Decision based on 3-tier rules
+            updateUI(probDom, probImp);
+        }
+
+        function updateUI(probDom, probImp) {
+            document.getElementById('probDomestic').innerText = `${probDom.toFixed(1)}%`;
+            document.getElementById('probImported').innerText = `${probImp.toFixed(1)}%`;
+
+            document.getElementById('barDomestic').style.width = `${probDom}%`;
+            document.getElementById('barImported').style.width = `${probImp}%`;
+
+            const decisionTitle = document.getElementById('decisionTitle');
+            const decisionDetail = document.getElementById('decisionDetail');
+            const badge = document.getElementById('evidenceLevelBadge');
+
+            if (probDom >= 70) {
+                // Tier 1: Domestic (Strong)
+                decisionTitle.className = "text-xs font-bold text-blue-400 mb-1";
+                decisionTitle.innerText = `✅ 국산 정통 산지 확정 (일치 확률: ${probDom.toFixed(1)}%)`;
+                decisionDetail.innerHTML = `검체 DNA 분석 결과, 국내산 특이 SNP 마커 및 자생 eDNA 지표 점수가 70% 이상으로 <strong>국내산 정통 산지 개체군</strong>과 일치합니다. 원산지 위변조 혐의 없음.`;
+                badge.className = "font-bold px-2 py-0.5 rounded text-emerald-400 bg-emerald-950/60 border border-emerald-800";
+                badge.innerText = "증거 입증 가능 (Strong)";
+            } else if (probDom < 30) {
+                // Tier 2: Imported (Strong)
+                decisionTitle.className = "text-xs font-bold text-red-400 mb-1";
+                decisionTitle.innerText = `🚨 수입산 / 원산지 위변조 확정 (수입산 확률: ${probImp.toFixed(1)}%)`;
+                decisionDetail.innerHTML = `수입산 특이 변이(SNP3) 및 음성 지표에 의해 국산 확률이 30% 미만(수입산 70% 이상)으로 산출되었습니다. <strong>수입산으로 위변조 판정</strong>됩니다. (법적 처벌 증거 채택 가능)`;
+                badge.className = "font-bold px-2 py-0.5 rounded text-emerald-400 bg-emerald-950/60 border border-emerald-800";
+                badge.innerText = "증거 입증 가능 (Strong)";
+            } else {
+                // Tier 3: Inconclusive / Mixed (30% ~ 70%)
+                decisionTitle.className = "text-xs font-bold text-amber-400 mb-1";
+                decisionTitle.innerText = `⚠️ 혼합 시료 / 판정 보류 (국산: ${probDom.toFixed(1)}%, 수입산: ${probImp.toFixed(1)}%)`;
+                decisionDetail.innerHTML = `국산 확률이 30%~70% 구간에 위치하여 국산과 수입산이 섞였거나 개체군 경계 시료일 가능성이 높습니다. <strong>단일 판정이 불가능하여 추가 SNP 확충 및 보강 수사가 필요</strong>합니다.`;
+                badge.className = "font-bold px-2 py-0.5 rounded text-amber-400 bg-amber-950/60 border border-amber-800";
+                badge.innerText = "판정 보류 / 보강 수사 필요";
+            }
+        }
+    </script>
+</body>
+</html>

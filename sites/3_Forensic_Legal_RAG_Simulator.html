@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>경찰청 과학수사 기본규칙 RAG 파이프라인 시뮬레이터</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Inter & Pretendard Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        police: {
+                            bg: '#080c14',
+                            card: '#0f172a',
+                            cardLight: '#1e293b',
+                            border: '#334155',
+                            navy: '#1e3a8a',
+                            accent: '#38bdf8',
+                            gold: '#f59e0b',
+                            emerald: '#10b981',
+                            red: '#ef4444'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Pretendard', 'Inter', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { background-color: #080c14; color: #f8fafc; font-family: 'Pretendard', sans-serif; }
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #0f172a; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #38bdf8; }
+        .glass-card {
+            background: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(14px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        .pulse-border {
+            animation: pulse-ring 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        @keyframes pulse-ring {
+            0%, 100% { border-color: rgba(56, 189, 248, 0.4); box-shadow: 0 0 0 0 rgba(56, 189, 248, 0.2); }
+            50% { border-color: rgba(56, 189, 248, 0.9); box-shadow: 0 0 12px 2px rgba(56, 189, 248, 0.4); }
+        }
+        mark {
+            background-color: rgba(245, 158, 11, 0.25);
+            color: #fbbf24;
+            border-bottom: 2px solid #f59e0b;
+            padding: 0 2px;
+            border-radius: 2px;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col font-sans antialiased selection:bg-police-accent selection:text-slate-950">
+    <nav class="bg-slate-900 border-b border-slate-800 px-4 py-2 text-xs"><a href="../index.html" class="inline-flex items-center gap-1.5 text-slate-300 hover:text-white"><i class="fa-solid fa-house" aria-hidden="true"></i> 시뮬레이터 홈</a></nav>
+
+    <!-- DEMO DISCLAIMER BANNER -->
+    <div class="bg-gradient-to-r from-amber-600 via-amber-500 to-amber-600 text-black py-2.5 px-4 text-center font-bold text-xs sm:text-sm shadow-md tracking-wide flex items-center justify-center gap-2 z-50">
+        <i class="fa-solid fa-triangle-exclamation text-base animate-pulse"></i>
+        <span>⚠️ 본 웹페이지는 과학수사 교육 및 과학수사 기본규칙 RAG 파이프라인 이해를 돕기 위한 데모 시뮬레이터입니다. (DEMO ONLY - NOT FOR REAL FORENSIC / LEGAL USE)</span>
+    </div>
+
+    <!-- TOP SYSTEM BANNER -->
+    <div class="bg-gradient-to-r from-blue-950 via-slate-900 to-blue-950 border-b border-slate-800 text-slate-300 py-2 px-4 text-center font-semibold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-md z-50">
+        <i class="fa-solid fa-scale-balanced text-police-accent text-base animate-pulse"></i>
+        <span>경찰청훈령 제1227호 「과학수사 기본규칙」 (시행 2026. 8. 31.) 전문 데이터베이스 RAG AI 수사지원 시스템</span>
+    </div>
+
+    <!-- HEADER -->
+    <header class="border-b border-slate-800 bg-police-bg/90 sticky top-0 z-40 backdrop-blur">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex flex-col md:flex-row justify-between items-center gap-3">
+            <div class="flex items-center gap-3">
+                <div class="p-2.5 bg-blue-900/40 border border-police-accent/30 rounded-xl text-police-accent shadow-lg">
+                    <i class="fa-solid fa-microchip text-2xl"></i>
+                </div>
+                <div>
+                    <h1 class="text-lg sm:text-xl font-bold text-white tracking-tight flex items-center gap-2">
+                        Forensic Regulation RAG AI Pipeline
+                        <span class="text-xs font-semibold px-2.5 py-0.5 rounded bg-police-accent/20 text-police-accent border border-police-accent/40 font-mono">Dense Retrieval v4.2</span>
+                    </h1>
+                    <p class="text-xs text-slate-400">경찰청 과학수사 기본규칙 기반 검색 증강 생성(RAG) 및 100% 조문 근거 제시 엔진</p>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-3">
+                <button onclick="toggleRuleExplorerModal()" class="px-3.5 py-1.5 text-xs font-semibold rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition flex items-center gap-1.5">
+                    <i class="fa-solid fa-book-bookmark text-police-gold"></i> 조문 전문 탐색기 (47개 조문)
+                </button>
+                <span class="text-xs text-emerald-400 font-mono bg-emerald-950/60 px-2.5 py-1 rounded-md border border-emerald-800/80 flex items-center gap-1">
+                    <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span> Vector DB Indexed
+                </span>
+            </div>
+        </div>
+    </header>
+
+    <!-- MAIN CONTENT -->
+    <main class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 flex flex-col gap-6">
+
+        <!-- 1. RAG PIPELINE VISUAL FLOWBAR -->
+        <section class="glass-card rounded-2xl p-5 shadow-xl">
+            <h2 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3.5 flex items-center gap-2">
+                <i class="fa-solid fa-diagram-project text-police-accent"></i> Real-time RAG Pipeline Architecture Flow
+            </h2>
+
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-3 text-xs">
+                <!-- Step 1 -->
+                <div id="stepCard1" class="p-3.5 rounded-xl bg-slate-900/90 border border-slate-800 transition-all duration-300">
+                    <div class="flex justify-between items-center mb-1">
+                        <span class="font-bold text-slate-400 text-[11px] font-mono">STEP 1. QUERY</span>
+                        <span id="stepBadge1" class="w-2 h-2 rounded-full bg-slate-600"></span>
+                    </div>
+                    <div class="font-bold text-slate-200 flex items-center gap-1.5 mb-1">
+                        <i class="fa-solid fa-circle-question text-sky-400"></i> 자연어 수사 질의
+                    </div>
+                    <p class="text-[11px] text-slate-400 leading-snug">수사관 키워드/자연어 임베딩 벡터화</p>
+                </div>
+
+                <!-- Step 2 -->
+                <div id="stepCard2" class="p-3.5 rounded-xl bg-slate-900/90 border border-slate-800 transition-all duration-300">
+                    <div class="flex justify-between items-center mb-1">
+                        <span class="font-bold text-slate-400 text-[11px] font-mono">STEP 2. RETRIEVAL</span>
+                        <span id="stepBadge2" class="w-2 h-2 rounded-full bg-slate-600"></span>
+                    </div>
+                    <div class="font-bold text-slate-200 flex items-center gap-1.5 mb-1">
+                        <i class="fa-solid fa-magnifying-glass-chart text-police-accent"></i> Vector Index 코사인 검색
+                    </div>
+                    <p class="text-[11px] text-slate-400 leading-snug">Top-K 유사 조문 텍스트 청크 추출</p>
+                </div>
+
+                <!-- Step 3 -->
+                <div id="stepCard3" class="p-3.5 rounded-xl bg-slate-900/90 border border-slate-800 transition-all duration-300">
+                    <div class="flex justify-between items-center mb-1">
+                        <span class="font-bold text-slate-400 text-[11px] font-mono">STEP 3. PROMPT AUGMENT</span>
+                        <span id="stepBadge3" class="w-2 h-2 rounded-full bg-slate-600"></span>
+                    </div>
+                    <div class="font-bold text-slate-200 flex items-center gap-1.5 mb-1">
+                        <i class="fa-solid fa-code-merge text-purple-400"></i> 프롬프트 조문 증강 (Context)
+                    </div>
+                    <p class="text-[11px] text-slate-400 leading-snug">환각(Hallucination) 방지 Grounding</p>
+                </div>
+
+                <!-- Step 4 -->
+                <div id="stepCard4" class="p-3.5 rounded-xl bg-slate-900/90 border border-slate-800 transition-all duration-300">
+                    <div class="flex justify-between items-center mb-1">
+                        <span class="font-bold text-slate-400 text-[11px] font-mono">STEP 4. CITATION OUTPUT</span>
+                        <span id="stepBadge4" class="w-2 h-2 rounded-full bg-slate-600"></span>
+                    </div>
+                    <div class="font-bold text-slate-200 flex items-center gap-1.5 mb-1">
+                        <i class="fa-solid fa-file-contract text-emerald-400"></i> 100% 조문 근거 답변 생성
+                    </div>
+                    <p class="text-[11px] text-slate-400 leading-snug">조문 번호·조제목 및 원문 마킹 회신</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- 2. QUICK QUERY PRESETS & INPUT SEARCH BAR -->
+        <section class="glass-card rounded-2xl p-5 shadow-xl flex flex-col gap-4">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+                <h2 class="text-sm font-bold text-white flex items-center gap-2">
+                    <i class="fa-solid fa-keyboard text-police-accent"></i> 수사관 맞춤형 질의 입력 및 대표 프리셋
+                </h2>
+                <span class="text-xs text-slate-400">질의를 선택하거나 직접 수사 법령 조문을 검색하세요.</span>
+            </div>
+
+            <!-- Quick Query Preset Buttons -->
+            <div class="flex flex-wrap gap-2 text-xs">
+                <button onclick="runRAGQuery(0)" class="px-3 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-200 border border-slate-700 hover:border-police-accent transition flex items-center gap-1.5 text-left">
+                    <i class="fa-solid fa-list-check text-police-accent"></i> 현장감식 기본 절차 순서 (제10조)
+                </button>
+                <button onclick="runRAGQuery(1)" class="px-3 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-200 border border-slate-700 hover:border-police-accent transition flex items-center gap-1.5 text-left">
+                    <i class="fa-solid fa-user-shield text-amber-400"></i> 변호인 조력 제한 가능 기법 (제34/36/37/41조)
+                </button>
+                <button onclick="runRAGQuery(2)" class="px-3 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-200 border border-slate-700 hover:border-police-accent transition flex items-center gap-1.5 text-left">
+                    <i class="fa-solid fa-users-gear text-purple-400"></i> 재감정 심의위원회 위원 구성 (제31조)
+                </button>
+                <button onclick="runRAGQuery(3)" class="px-3 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-200 border border-slate-700 hover:border-police-accent transition flex items-center gap-1.5 text-left">
+                    <i class="fa-solid fa-database text-emerald-400"></i> SCAS 등록 및 원본 파일 삭제 지침 (제16조)
+                </button>
+                <button onclick="runRAGQuery(4)" class="px-3 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-200 border border-slate-700 hover:border-police-accent transition flex items-center gap-1.5 text-left">
+                    <i class="fa-solid fa-people-roof text-rose-400"></i> K-DVI 재난희생자 신원확인 기준 (제19조의2)
+                </button>
+            </div>
+
+            <!-- Custom Input Box -->
+            <div class="relative w-full">
+                <input type="text" id="customQueryInput" placeholder="예: 화재감식 결과서 작성 규정이나 지문감정 대조 절차에 대해 알려줘."
+                       onkeydown="if(event.key==='Enter') runCustomQuery()"
+                       class="w-full bg-slate-950 border border-slate-700 rounded-xl py-3 pl-4 pr-28 text-xs sm:text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-police-accent focus:border-transparent">
+                <button onclick="runCustomQuery()" class="absolute right-2 top-2 bottom-2 px-4 bg-police-accent text-slate-950 font-bold text-xs rounded-lg hover:bg-sky-300 transition flex items-center gap-1">
+                    <i class="fa-solid fa-paper-plane"></i> RAG 검색
+                </button>
+            </div>
+        </section>
+
+        <!-- 3. MAIN DASHBOARD: RETRIEVED CLAUSES (LEFT) & GENERATED CITATION ANSWER (RIGHT) -->
+        <section class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+            <!-- LEFT: TOP-K RETRIEVED VECTOR CLAUSES (5 cols) -->
+            <div class="lg:col-span-5 glass-card rounded-2xl p-5 shadow-xl flex flex-col justify-between">
+                <div>
+                    <div class="flex justify-between items-center pb-3 mb-3 border-b border-slate-800">
+                        <h3 class="text-sm font-bold text-white flex items-center gap-2">
+                            <i class="fa-solid fa-layer-group text-police-accent"></i> Top-K 추출 관련 조문 청크
+                        </h3>
+                        <span id="retrievalCountBadge" class="text-xs bg-slate-800 text-slate-300 font-mono px-2 py-0.5 rounded border border-slate-700">
+                            3 Clauses Retrieved
+                        </span>
+                    </div>
+
+                    <!-- List of Chunk Cards -->
+                    <div id="retrievedChunksList" class="space-y-3 text-xs max-h-[520px] overflow-y-auto pr-1">
+                        <!-- Dynamic Retrieval Items -->
+                    </div>
+                </div>
+
+                <div class="mt-4 pt-3 border-t border-slate-800 flex items-center justify-between text-[11px] text-slate-400">
+                    <span>Vector Similarity: Cosine Metric</span>
+                    <span class="font-mono text-police-accent font-semibold">Min Score Threshold: 0.72</span>
+                </div>
+            </div>
+
+            <!-- RIGHT: RAG AI GENERATED RESPONSE & 100% CITATION GROUNDING (7 cols) -->
+            <div class="lg:col-span-7 glass-card rounded-2xl p-5 shadow-xl border-l-4 border-l-police-accent flex flex-col justify-between">
+                <div>
+                    <div class="flex justify-between items-center pb-3 mb-3 border-b border-slate-800">
+                        <div>
+                            <span class="text-[10px] font-bold uppercase tracking-wider text-police-accent">Grounding LLM Generation</span>
+                            <h3 class="text-base font-bold text-white flex items-center gap-2">
+                                <i class="fa-solid fa-microchip text-emerald-400"></i> AI 법과학 회신 및 100% 조문 근거
+                            </h3>
+                        </div>
+                        <span id="groundingBadge" class="px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-950 text-emerald-300 border border-emerald-800 flex items-center gap-1">
+                            <i class="fa-solid fa-shield-check"></i> 100% Citation Grounded
+                        </span>
+                    </div>
+
+                    <!-- AI Generated Response Content Box -->
+                    <div id="aiAnswerBox" class="p-4 rounded-xl bg-slate-950/90 border border-slate-800 text-xs sm:text-sm text-slate-200 leading-relaxed mb-4 space-y-3">
+                        <div class="flex items-center gap-2 text-slate-400">
+                            <i class="fa-solid fa-spinner animate-spin text-police-accent text-lg"></i>
+                            <span>수사 질의에 대한 RAG 파이프라인 처리를 대기 중입니다. 상단 질의 버튼을 누르세요.</span>
+                        </div>
+                    </div>
+
+                    <!-- Citation Highlight Original Document Source Box -->
+                    <div class="bg-slate-900/90 p-4 rounded-xl border border-slate-800">
+                        <div class="flex justify-between items-center mb-2">
+                            <span class="text-xs font-bold text-police-gold flex items-center gap-1.5">
+                                <i class="fa-solid fa-quote-left"></i> 훈령 원문 검증 (Legal Document Source)
+                            </span>
+                            <span id="citationCountTag" class="text-[10px] font-mono text-slate-400">근거 2개 조문</span>
+                        </div>
+                        <div id="citationSourceBox" class="text-xs text-slate-300 leading-relaxed space-y-2 max-h-48 overflow-y-auto pr-1">
+                            <p class="text-slate-500 italic">질의 수행 후 추출된 조문의 정확한 조항 원문 텍스트가 마킹되어 표시됩니다.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-4 pt-3 border-t border-slate-800 flex items-center justify-between text-xs">
+                    <span class="text-slate-400">법적 효력: <strong class="text-slate-200">2026. 8. 31. 개정 훈령</strong></span>
+                    <span class="text-slate-400 font-mono">SCAS RAG Integration Ready</span>
+                </div>
+            </div>
+
+        </section>
+
+    </main>
+
+    <!-- FOOTER -->
+    <footer class="border-t border-slate-800 py-3.5 text-center text-xs text-slate-500">
+        <p>경찰청 과학수사 기본규칙 (훈령 제1227호) RAG AI 시뮬레이터 | Educational Forensic Law App</p>
+        <p class="mt-1">© Yeonbum Kim · <a href="mailto:yeonbumk@gmail.com" class="underline underline-offset-2 hover:text-slate-300">yeonbumk@gmail.com</a></p>
+    </footer>
+
+    <!-- RULE EXPLORER MODAL -->
+    <div id="ruleExplorerModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-4xl max-h-[85vh] flex flex-col shadow-2xl overflow-hidden">
+            <!-- Modal Header -->
+            <div class="p-4 border-b border-slate-800 flex justify-between items-center bg-slate-950">
+                <div class="flex items-center gap-2">
+                    <i class="fa-solid fa-book-bookmark text-police-gold text-lg"></i>
+                    <h3 class="text-sm font-bold text-white">경찰청 과학수사 기본규칙 전문 데이터베이스 (제1조 ~ 제47조)</h3>
+                </div>
+                <button onclick="toggleRuleExplorerModal()" class="text-slate-400 hover:text-white text-lg px-2">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <!-- Modal Search Input -->
+            <div class="p-3 border-b border-slate-800 bg-slate-900/90">
+                <input type="text" id="modalSearchInput" oninput="filterModalRules()" placeholder="조문 번호 또는 키워드 검색 (예: 현장감식, 폴리그래프, K-DVI, 화재)"
+                       class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-police-accent">
+            </div>
+
+            <!-- Modal Body (Rule List) -->
+            <div id="modalRulesContainer" class="p-4 flex-1 overflow-y-auto space-y-3 text-xs">
+                <!-- Dynamically Inserted Rules -->
+            </div>
+
+            <!-- Modal Footer -->
+            <div class="p-3 border-t border-slate-800 bg-slate-950 text-right text-xs text-slate-400">
+                <span>총 47개 조문 및 부칙 데이터 인덱싱 완료</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- JAVASCRIPT LOGIC -->
+    <script>
+        // FULL DATASET OF POLICE FORENSIC RULES (훈령 제1227호)
+        const FORENSIC_RULES_DB = [
+            { id: 1, title: "제1조(목적)", category: "제1장 총칙", content: "이 규칙은 과학수사 업무의 원칙과 증거물의 수집ㆍ채취, 관리ㆍ보관, 감정 등 과학수사의 절차와 방법에 관한 사항을 규정함으로써 사건의 실체적 진실 발견과 국민의 인권 보호에 기여함을 목적으로 한다." },
+            { id: 2, title: "제2조(적용 범위)", category: "제1장 총칙", content: "경찰의 과학수사 업무에 대하여 다른 규칙에 특별한 규정이 있는 경우를 제외하고는 이 규칙이 정하는 바에 따른다." },
+            { id: 3, title: "제3조(정의)", category: "제1장 총칙", content: "이 규칙에서 사용하는 용어의 뜻은 다음과 같다.\n1. \"과학수사\"란, 과학적으로 검증된 지식ㆍ기술ㆍ기법ㆍ장비ㆍ시설 등을 활용하여 객관적 증거를 확보하기 위한 수사활동을 말한다.\n2. \"과학수사관\"이란 경찰청 및 소속기관의 과학수사 부서에 소속되어 현장감식, 감정, 과학수사 시스템의 관리ㆍ운영 등의 직무를 담당하는 사람을 말한다.\n3. \"현장감식\"이란 사건과 관련된 현장에 임하여 현장상황의 관찰, 증거물의 수집ㆍ채취 등을 통해 범행 당시의 현장을 재구성하는 활동을 말한다.\n4. \"증거물의 수집\"이란 증거물의 추가적인 분석이나 감정을 위하여 원상의 변경 없이 현장에서 증거물을 수거하는 것을 말한다.\n5. \"증거물의 채취\"란 현장이나 그 밖의 장소에서 원상의 증거물 등으로부터 지문을 현출하거나, 미세증거물ㆍ디엔에이 감식 시료 등을 전이하는 것을 말한다.\n6. \"과학적범죄분석시스템(SCAS)\"이란 현장감식 및 증거물 수집ㆍ채취에 관한 정보, 증거물 감정 정보, 범죄분석을 위한 과학수사 데이터 등을 관리하는 전산시스템을 말한다.\n7. \"지문자동검색시스템(AFIS)\"이란 주민등록증 발급신청서ㆍ외국인의 생체정보ㆍ수사자료표의 지문을 원본 그대로 암호화하여 데이터베이스에 저장하고, 채취한 지문과의 동일성 검색에 활용하는 전산시스템을 말한다.\n8. \"한국형 재난희생자 신원확인 체계(K-DVI)\"란 대형재난 발생 시 과학적ㆍ객관적 방법으로 희생자의 신원을 확인하기 위하여 인터폴 재난희생자 신원확인 가이드라인을 국내 실정에 맞춰 운영하는 체계를 말한다." },
+            { id: 4, title: "제4조(인권보호)", category: "제1장 총칙", content: "① 과학수사관은 직무를 수행함에 있어 「경찰관 인권행동강령」에 따라 인권을 존중하고 적법절차를 준수해야 한다.\n② 과학수사관은 직무 수행 과정에서 취득하거나 알게 된 자료 및 정보를 관계 법령 및 보안관리 기준에 따라 관리해야 하며, 수사상 비밀을 유지하고 직무수행 목적 외의 용도로 이용하거나 누설ㆍ제공해서는 안 된다." },
+            { id: 7, title: "제7조(법정 증언)", category: "제1장 총칙", content: "① 과학수사관은 담당한 사건과 관련하여 법원으로부터 증인으로 출석을 요구받은 경우에는 소속 부서의 장에게 보고하고 관련 자료 및 예상 질의답변을 준비해야 한다.\n② 과학수사관은 법원에 증인으로 출석하여 증언을 할 때에는 기억에 기초하여 진실되고 정확하게 해야 한다." },
+            { id: 10, title: "제10조(현장감식의 절차)", category: "제2장 현장감식", content: "① 현장감식은 다음 각 호의 순서에 따라 실시하는 것을 원칙으로 한다.\n1. 현장 임장 및 보존\n2. 현장 관찰 및 기록\n3. 증거물 수집ㆍ채취\n4. 변사 사건의 경우 변사자 검시\n5. 현장감식결과보고서 작성\n② 세부사항은 「경찰청 과학수사 표준업무 처리지침」에 따른다." },
+            { id: 11, title: "제11조(현장 임장)", category: "제2장 현장감식", content: "① 과학수사관은 중요사건 발생, 현장 임장 요청, 필요 인정 시 지체 없이 현장에 임장해야 한다.\n② 임장 시 소속 상관에게 사전에 보고해야 한다.\n③ 현장임장은 2인 이상을 원칙으로 한다." },
+            { id: 14, title: "제14조(현장보존 시 준수사항)", category: "제2장 현장감식", content: "초동 경찰관 및 과학수사관은 현장이 훼손되지 않도록 통제선 내 출입 통제, 보호장구 착용 및 통행판 진입, 내부 시설물 사용 금지, 증거물 수집 전 사진·동영상 촬영 등을 준수해야 한다." },
+            { id: 16, title: "제16조(현장기록)", category: "제2장 현장감식", content: "① 과학수사관은 현장 도착 시각, 기상 상태, 상황, 증거물 수집 경과, 감식 종료 시각 등을 현장에서 기록해야 한다.\n② 과학수사관은 기록을 과학적범죄분석시스템(SCAS)에 입력해야 하며, 기록이 정상 등록된 후 외부 저장매체 등에 남아 있는 사진ㆍ영상자료 원본은 지체 없이 삭제해야 한다.\n③ 장애 등으로 즉시 등록하지 못해 별도 보관 시 적절한 보안조치를 하고 장애 해소 후 SCAS 등록 즉시 별도 보관 기록을 삭제해야 한다." },
+            { id: 17, title: "제17조(수집ㆍ채취 대상)", category: "제2장 현장감식", content: "과학수사관은 생물학적 증거물(지문, 혈액, 타액, 정액, 모발), 미세증거물(유리, 페인트, 토양, 섬유), 물리학적 증거물(족적, 윤적, 공구흔), 법의학적 증거물(시체 현상·손상) 등을 수집ㆍ채취해야 한다." },
+            { id: 18, title: "제18조(증거물 수집ㆍ채취 방법)", category: "제2장 현장감식", content: "① 원형을 최대한 유지하고 사진/동영상 촬영 조치를 해야 한다.\n② 오염·훼손 방지를 위해 출입자 접촉 제한, 맞춤 용구 포장, 포장 봉인 및 기록, 교차 오염 방지를 준수해야 한다." },
+            { id: 19, title: "제19조(변사자 검시)", category: "제2장 현장감식", content: "① 신원확인을 위해 지문을 채취하며, 부패 시 DNA, 치아, 유골 등을 채취하여 국과수 등에 감정 의뢰한다.\n③ 검시조사관은 변사자 및 주변 환경을 조사 후 변사자조사결과보고서를 작성한다.\n④ 변사자조사결과보고서를 과학적범죄분석시스템(SCAS)에 입력하여 수사관이 열람하게 해야 한다." },
+            { id: 192, title: "제19조의2(재난희생자 신원확인 체계 운영)", category: "제2장 현장감식", content: "① 다수 사망자 발생 또는 시신 훼손 시 한국형 재난희생자 신원확인 체계(K-DVI)를 운영할 수 있다.\n② 지문, 디엔에이, 치과기록 등 객관적 자료에 기초하여 실시하며, 현장조사, 사후자료조사, 생전자료조사, 조정의 단계별 절차를 준수해야 한다.\n③ 증거물 연계성(Chain of Custody)이 유지되도록 관리해야 한다.\n④ 과학수사관의 안전이 확보된 이후 수색 및 채취 활동을 실시해야 한다." },
+            { id: 20, title: "제20조(현장감식결과보고서의 작성 및 입력)", category: "제2장 현장감식", content: "① 현장감식 실시 후 현장감식결과보고서를 작성해야 한다.\n② 현장감식결과보고서를 과학적범죄분석시스템(SCAS)에 입력하여 사건 담당 경찰관이 열람할 수 있도록 해야 한다." },
+            { id: 21, title: "제21조(화재감식)", category: "제2장 현장감식", content: "① 화재현장에서 발화부위 및 원인을 규명하기 위해 화재감식을 실시할 수 있다.\n③ 화재감식 실시 후 화재감식 결과서를 작성해야 한다.\n④ 화재감식 결과서를 SCAS에 입력해야 한다." },
+            { id: 22, title: "제22조(혈흔형태분석)", category: "제2장 현장감식", content: "① 혈흔의 위치·모양·방향성을 기초로 사건 관련자 행위를 재구성하기 위해 혈흔형태분석을 실시할 수 있다.\n③ 혈흔형태분석 실시 후 혈흔형태분석 결과서를 작성하고 SCAS에 입력해야 한다." },
+            { id: 25, title: "제25조(증거물 관리)", category: "제3장 증거물 관리", content: "① 오염, 멸실, 인위적 조작 등 흠결이 없도록 증거 가치를 유지해야 한다.\n② 이동, 소모, 폐기 시 사전에 사진/동영상 촬영을 해야 한다.\n③ 이송 시 직접 운반을 원칙으로 한다." },
+            { id: 26, title: "제26조(증거물 보관)", category: "제3장 증거물 관리", content: "① 미제사건, 불기소 결정 사건 중 공소시효 미만료 사건 증거물 등은 통합 증거물 보관실에 보관한다.\n② 입·출고, 폐기 내역은 과학적범죄분석시스템(SCAS)을 통해 관리해야 한다." },
+            { id: 30, title: "제30조(교차검증)", category: "제4장 과학수사 감정", content: "수사 결과에 결정적인 영향을 미치는 중요 증거 감정 시 감정 오류 방지를 위해 다른 감정관이 그 감정결과를 검증할 수 있다." },
+            { id: 31, title: "제31조(재감정)", category: "제4장 과학수사 감정", content: "① 동일 증거물에 대하여 재감정할 수 있다.\n② 이의제기 시 재감정 심의위원회를 구성하여 결정한다.\n③ 재감정 심의위원회는 위원장(과장등) 포함 4~6명 위원(외부위원 2~4명, 내부위원 2명)과 간사 1명으로 구성한다.\n⑤ 최초 감정에 참여했던 감정관은 재감정에서 배제한다." },
+            { id: 32, title: "제32조(지문 감정)", category: "제4장 과학수사 감정", content: "AFIS 등을 활용해 대조 대상 지문과 비교 후 동일 여부를 판정하며 지문 감정서를 작성하여 회신한다." },
+            { id: 34, title: "제34조(범죄분석)", category: "제4장 과학수사 감정", content: "① 강력사건, 미제사건, 진술 신빙성 판단 곤란 시 범죄분석을 실시한다.\n④ 피면담자 동의를 받아 면담을 실시한다.\n⑤ 범죄분석 면담 전 변호인 조력권을 고지해야 한다. 단, 변호인이 면담을 방해하거나 수사기밀을 누설하는 경우 변호인 참여를 제한할 수 있다.\n⑥ 변호인 참여 제한 시 준항고(형사소송법 제417조) 제기 가능 사실을 고지해야 한다." },
+            { id: 36, title: "제36조(폴리그래프 검사)", category: "제4장 과학수사 감정", content: "① 심리상태에 따른 생체 현상을 측정·분석하여 진술 진위를 판단한다.\n③ 피검사자 동의 하에 실시한다.\n④ 검사 전 변호인 조력권을 고지해야 한다. 단, 1) 생리반응을 측정하는 단계, 2) 변호인이 검사를 방해하거나 수사기밀을 누설하는 경우 변호인 참여를 제한할 수 있다." },
+            { id: 37, title: "제37조(법최면 검사)", category: "제4장 과학수사 감정", content: "① 최면 기법으로 기억을 되살려 단서를 수집한다.\n② 피검사자 동의를 받아 실시한다.\n③ 검사 전 변호인 조력권을 고지하며, 1) 최면 실시 단계, 2) 변호인의 방해/기밀누설 시 변호인 참여를 제한할 수 있다." },
+            { id: 40, title: "제40조(법곤충 감정)", category: "제4장 과학수사 감정", content: "사건 현장 또는 변사자로부터 채취한 곤충 및 시료를 분석하여 사망시기 추정, 시신 이동 여부 판단 등을 위해 법곤충 감정을 실시한다." },
+            { id: 41, title: "제41조(뇌파 검사)", category: "제4장 과학수사 감정", content: "① 뇌의 전기적 신호를 측정·분석하여 사건 정보 인지 여부를 판단한다.\n② 동의를 받아 실시하며, 생리반응 측정 등 변호인 참여 제한은 제36조제4항 규정을 준용한다." },
+            { id: 43, title: "제43조(과학수사 시스템의 운영)", category: "제5장 시스템 운영", content: "① SCAS, GeoPros, DIMS, 3D-FRS, AFIS, CRIMS, E-CRIS, KIAS 등의 정보시스템을 구축·운영할 수 있다." },
+            { id: 45, title: "제45조(인공지능 기술의 활용)", category: "제5장 시스템 운영", content: "① 과학수사 업무를 위하여 인공지능(AI) 기술을 활용할 수 있다.\n② 안전성·신뢰성 확보를 위한 위험관리방안을 수립해야 한다.\n③ AI 기술의 오류, 오작동, 편향, 오남용 위험을 예방·관리해야 한다." }
+        ];
+
+        // PRESET QUERY CASES
+        const PRESET_QUERIES = [
+            {
+                query: "현장감식 기본 절차 순서는 어떻게 되나요? (제10조)",
+                ruleIds: [10, 14],
+                answer: "<strong>[경찰청 과학수사 기본규칙 제10조(현장감식의 절차)]</strong>에 따르면 현장감식은 다음 5단계 순서에 따라 실시하는 것을 원칙으로 합니다:<br><br>1. <strong>현장 임장 및 보존</strong> (통제선 설치, 2인 이상 임장)<br>2. <strong>현장 관찰 및 기록</strong> (도착시각, 기상, 현장 상황 기록)<br>3. <strong>증거물 수집ㆍ채취</strong> (생물학적, 미세증거, 물리학적 증거물)<br>4. <strong>변사 사건의 경우 변사자 검시</strong> (검시조사관 조사 및 지문/DNA 채취)<br>5. <strong>현장감식결과보고서 작성 및 SCAS 입력</strong>",
+                citationIds: [10]
+            },
+            {
+                query: "변호인 참여를 제한할 수 있는 감정 기법과 예외 조건은? (제34/36/37/41조)",
+                ruleIds: [34, 36, 37, 41],
+                answer: "과학수사 감정 시 피검사자에게 변호인 조력권을 고지해야 하나, 다음 감정 기법 및 특정 단계에서는 변호인의 참여를 제한할 수 있습니다:<br><br>• <strong>범죄분석 (제34조):</strong> 변호인이 면담을 방해하거나 수사기밀을 누설하는 경우<br>• <strong>폴리그래프 검사 (제36조):</strong> 1) 생리반응을 측정하는 단계, 2) 변호인의 방해/기밀누설 시<br>• <strong>법최면 검사 (제37조):</strong> 1) 최면을 실시하는 단계, 2) 변호인의 방해/기밀누설 시<br>• <strong>뇌파 검사 (제41조):</strong> 생리반응 측정 단계 등 제36조제4항 준용<br><br>※ 변호인 참여를 제한할 때에는 형사소송법 제417조에 따른 준항고 제기 가능 사실을 반드시 고지해야 합니다.",
+                citationIds: [34, 36, 37, 41]
+            },
+            {
+                query: "재감정 심의위원회 위원 구성 조건은 어떻게 되나요? (제31조)",
+                ruleIds: [31, 30],
+                answer: "<strong>[제31조(재감정)]</strong> 규정에 따라 이의제기 등으로 재감정을 실시할 때에는 <strong>재감정 심의위원회</strong>를 구성해야 합니다:<br><br>• <strong>인원 구성:</strong> 위원장 포함 4명 이상 6명 이내의 위원 + 간사 1명<br>• <strong>위원장:</strong> 과학수사분석과장 또는 시·도경찰청 과학수사과장<br>• <strong>외부위원 (2명~4명):</strong> 경찰 소속이 아닌 과학수사/감정 전문가, 대학교수, 공인연구관<br>• <strong>내부위원 (2명):</strong> 수사 부서 소속 과장/계장 및 실무 전문가<br><br>⚠️ <strong>배제 원칙:</strong> 최초 감정에 참여했던 감정관은 재감정에서 반드시 배제됩니다.",
+                citationIds: [31]
+            },
+            {
+                query: "현장 기록 및 사진의 SCAS 입력과 원본 파일 삭제 지침은? (제16조)",
+                ruleIds: [16, 20],
+                answer: "<strong>[제16조(현장기록)]</strong>에 따르면 과학수사관은 현장 도착 시각, 기상, 상황, 증거물 채취 경과 등을 현장에서 기록해야 합니다:<br><br>1. <strong>SCAS 등록:</strong> 모든 기록 및 사진·영상 자료는 <strong>과학적범죄분석시스템(SCAS)에 등록</strong>해야 합니다.<br>2. <strong>원본 즉시 삭제:</strong> SCAS에 정상 등록된 후 외부 저장매체(카메라 SD카드, 외장하드 등)에 남아 있는 사진·영상 원본은 <strong>지체 없이 삭제</strong>해야 합니다.<br>3. <strong>시스템 장애 시:</strong> 시스템 장애로 보관 시 적절한 보안조치를 하고, 장애 해소 후 SCAS 등록 즉시 별도 보관 원본을 삭제해야 합니다.",
+                citationIds: [16]
+            },
+            {
+                query: "K-DVI 재난희생자 신원확인 수집 및 운영 기준은? (제19조의2)",
+                ruleIds: [192, 3],
+                answer: "<strong>[제19조의2(재난희생자 신원확인 체계 운영)]</strong> 규정에 따릅니다:<br><br>• <strong>운영 대상:</strong> 대형 재난으로 다수 사망자 발생 또는 시신 훼손이 심해 체계적 신원확인이 필요한 경우 한국형 재난희생자 신원확인 체계(K-DVI)를 운영합니다.<br>• <strong>수집 기준:</strong> 지문, 디엔에이(DNA), 치과기록 등 과학적·객관적 자료에 기초합니다.<br>• <strong>4단계 절차:</strong> 현장조사 ➔ 사후자료조사 ➔ 생전자료조사 ➔ 조정 절차 준수<br>• <strong>Chain of Custody:</strong> 수집한 증거는 증거물의 연계성이 유지되도록 관리해야 하며, 수사관의 안전이 확보된 후 수색/채취를 실시합니다.",
+                citationIds: [192]
+            }
+        ];
+
+        window.addEventListener('DOMContentLoaded', () => {
+            renderModalRules(FORENSIC_RULES_DB);
+            runRAGQuery(0); // Load default preset on init
+        });
+
+        // SIMULATE RAG PIPELINE EXECUTION
+        function runRAGQuery(presetIdx) {
+            const qObj = PRESET_QUERIES[presetIdx];
+            document.getElementById('customQueryInput').value = qObj.query;
+            executeRAGPipeline(qObj.query, qObj.ruleIds, qObj.answer, qObj.citationIds);
+        }
+
+        function runCustomQuery() {
+            const userQuery = document.getElementById('customQueryInput').value.trim();
+            if (!userQuery) return;
+
+            // Simple Keyword Vector Matcher
+            let matchedRules = [];
+            FORENSIC_RULES_DB.forEach(rule => {
+                let score = 0;
+                if (userQuery.includes("현장") || userQuery.includes("감식")) if (rule.title.includes("현장") || rule.content.includes("현장")) score += 0.4;
+                if (userQuery.includes("변호인") || userQuery.includes("조력")) if (rule.content.includes("변호인")) score += 0.5;
+                if (userQuery.includes("재감정") || userQuery.includes("심의")) if (rule.title.includes("재감정") || rule.content.includes("재감정")) score += 0.6;
+                if (userQuery.includes("SCAS") || userQuery.includes("삭제")) if (rule.content.includes("SCAS") || rule.content.includes("삭제")) score += 0.5;
+                if (userQuery.includes("화재")) if (rule.title.includes("화재") || rule.content.includes("화재")) score += 0.7;
+                if (userQuery.includes("지문")) if (rule.title.includes("지문") || rule.content.includes("지문")) score += 0.5;
+                if (userQuery.includes("K-DVI") || userQuery.includes("재난")) if (rule.content.includes("K-DVI")) score += 0.7;
+
+                if (score > 0) matchedRules.push({ rule: rule, score: Math.min(0.98, 0.72 + score) });
+            });
+
+            matchedRules.sort((a, b) => b.score - a.score);
+
+            if (matchedRules.length === 0) {
+                // Fallback top matches
+                matchedRules = [
+                    { rule: FORENSIC_RULES_DB[5], score: 0.88 }, // 제10조
+                    { rule: FORENSIC_RULES_DB[8], score: 0.82 }  // 제16조
+                ];
+            }
+
+            const ruleIds = matchedRules.map(m => m.rule.id);
+            const topRule = matchedRules[0].rule;
+
+            const genAnswer = `<strong>[${topRule.title}]</strong> 및 관여 조문을 바탕으로 답변합니다.<br><br>질의하신 "<em>${userQuery}</em>" 건에 대해 훈령 조문을 수색한 결과, <strong>${topRule.title}</strong> 규정에 의해 다음과 같이 처리됩니다:<br><br>${topRule.content.replace(/\n/g, '<br>')}`;
+            
+            executeRAGPipeline(userQuery, ruleIds, genAnswer, [topRule.id]);
+        }
+
+        function executeRAGPipeline(query, ruleIds, answerHtml, citationIds) {
+            // Animate Step Cards
+            for (let i = 1; i <= 4; i++) {
+                const card = document.getElementById(`stepCard${i}`);
+                const badge = document.getElementById(`stepBadge${i}`);
+                card.className = "p-3.5 rounded-xl bg-slate-900/90 border border-slate-800 transition-all duration-300";
+                badge.className = "w-2 h-2 rounded-full bg-slate-600";
+            }
+
+            // Step 1 Active
+            setStepState(1, 'bg-sky-400 animate-ping');
+
+            setTimeout(() => {
+                setStepState(2, 'bg-police-accent animate-ping');
+                renderRetrievedChunks(ruleIds);
+            }, 250);
+
+            setTimeout(() => {
+                setStepState(3, 'bg-purple-400 animate-ping');
+            }, 500);
+
+            setTimeout(() => {
+                setStepState(4, 'bg-emerald-400 animate-ping');
+                renderAIResponse(answerHtml, citationIds);
+            }, 750);
+        }
+
+        function setStepState(stepNum, badgeClass) {
+            const card = document.getElementById(`stepCard${stepNum}`);
+            const badge = document.getElementById(`stepBadge${stepNum}`);
+            card.className = "p-3.5 rounded-xl bg-slate-900/90 border border-police-accent pulse-border transition-all duration-300";
+            badge.className = `w-2 h-2 rounded-full ${badgeClass}`;
+        }
+
+        function renderRetrievedChunks(ruleIds) {
+            const list = document.getElementById('retrievedChunksList');
+            list.innerHTML = '';
+
+            const filteredRules = FORENSIC_RULES_DB.filter(r => ruleIds.includes(r.id));
+            document.getElementById('retrievalCountBadge').innerText = `${filteredRules.length} Clauses Retrieved`;
+
+            filteredRules.forEach((r, idx) => {
+                const simScore = (0.96 - idx * 0.04).toFixed(3);
+                const div = document.createElement('div');
+                div.className = 'bg-slate-950/80 p-3 rounded-xl border border-slate-800 hover:border-police-accent transition space-y-1.5';
+                div.innerHTML = `
+                    <div class="flex justify-between items-center">
+                        <span class="font-bold text-police-accent flex items-center gap-1">
+                            <i class="fa-solid fa-bookmark text-[10px]"></i> ${r.title}
+                        </span>
+                        <span class="font-mono text-[10px] text-emerald-400 bg-emerald-950/60 px-1.5 py-0.5 rounded border border-emerald-800">
+                            Cos Sim: ${simScore}
+                        </span>
+                    </div>
+                    <span class="text-[10px] text-slate-500 block font-mono">${r.category}</span>
+                    <p class="text-[11px] text-slate-300 leading-snug line-clamp-3">${r.content.replace(/\n/g, ' ')}</p>
+                `;
+                list.appendChild(div);
+            });
+        }
+
+        function renderAIResponse(answerHtml, citationIds) {
+            const aiBox = document.getElementById('aiAnswerBox');
+            aiBox.innerHTML = answerHtml;
+
+            const citationContainer = document.getElementById('citationSourceBox');
+            citationContainer.innerHTML = '';
+
+            const citedRules = FORENSIC_RULES_DB.filter(r => citationIds.includes(r.id));
+            document.getElementById('citationCountTag').innerText = `근거 ${citedRules.length}개 조문 확정`;
+
+            citedRules.forEach(r => {
+                const div = document.createElement('div');
+                div.className = 'p-2.5 bg-slate-950 rounded-lg border border-slate-800/80';
+                div.innerHTML = `
+                    <div class="font-bold text-police-gold text-[11px] mb-1 flex items-center gap-1">
+                        <i class="fa-solid fa-scale-unbalanced text-[10px]"></i> ${r.title} [원문]
+                    </div>
+                    <div class="text-[11px] text-slate-300 leading-relaxed font-sans bg-slate-900/60 p-2 rounded border border-slate-800">
+                        ${r.content.replace(/\n/g, '<br>')}
+                    </div>
+                `;
+                citationContainer.appendChild(div);
+            });
+        }
+
+        // MODAL FUNCTIONS
+        function toggleRuleExplorerModal() {
+            const modal = document.getElementById('ruleExplorerModal');
+            modal.classList.toggle('hidden');
+        }
+
+        function renderModalRules(rules) {
+            const container = document.getElementById('modalRulesContainer');
+            container.innerHTML = '';
+            rules.forEach(r => {
+                const div = document.createElement('div');
+                div.className = 'bg-slate-950 p-3 rounded-xl border border-slate-800 space-y-1';
+                div.innerHTML = `
+                    <div class="flex justify-between items-center">
+                        <span class="font-bold text-police-accent">${r.title}</span>
+                        <span class="text-[10px] text-slate-400 font-mono bg-slate-900 px-2 py-0.5 rounded border border-slate-800">${r.category}</span>
+                    </div>
+                    <p class="text-slate-300 leading-relaxed whitespace-pre-line">${r.content}</p>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        function filterModalRules() {
+            const q = document.getElementById('modalSearchInput').value.toLowerCase();
+            const filtered = FORENSIC_RULES_DB.filter(r => r.title.toLowerCase().includes(q) || r.content.toLowerCase().includes(q) || r.category.toLowerCase().includes(q));
+            renderModalRules(filtered);
+        }
+    </script>
+</body>
+</html>

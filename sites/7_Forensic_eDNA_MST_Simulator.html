@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>eDNA 미생물 원천 추적(MST) 법과학 AI 시뮬레이터</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Google Inter Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        forensic: {
+                            bg: '#0a0f1d',
+                            card: '#141c30',
+                            border: '#23304d',
+                            accent: '#00f5d4',
+                            pig: '#ff70a6',
+                            chicken: '#ff9f1c',
+                            cattle: '#2ec4b6',
+                            water: '#3a86ff'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background-color: #0a0f1d;
+            color: #e2e8f0;
+        }
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #141c30;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #23304d;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #00f5d4;
+        }
+        .glass-card {
+            background: rgba(20, 28, 48, 0.75);
+            backdrop-filter: blur(14px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        input[type=range] {
+            accent-color: #00f5d4;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col font-sans antialiased selection:bg-forensic-accent selection:text-black">
+    <nav class="bg-slate-900 border-b border-slate-800 px-4 py-2 text-xs"><a href="../index.html" class="inline-flex items-center gap-1.5 text-slate-300 hover:text-white"><i class="fa-solid fa-house" aria-hidden="true"></i> 시뮬레이터 홈</a></nav>
+
+    <!-- DEMO DISCLAIMER BANNER -->
+    <div class="bg-gradient-to-r from-amber-600 via-amber-500 to-amber-600 text-black py-2.5 px-4 text-center font-bold text-xs sm:text-sm shadow-md tracking-wide flex items-center justify-center gap-2 z-50">
+        <i class="fa-solid fa-triangle-exclamation text-base animate-pulse"></i>
+        <span>⚠️ 본 웹페이지는 과학수사 교육 및 이해를 돕기 위한 데모용 시뮬레이터입니다. (DEMO ONLY - NOT FOR REAL FORENSIC USE)</span>
+    </div>
+
+    <!-- HEADER -->
+    <header class="border-b border-gray-800 bg-forensic-bg/90 sticky top-0 z-40 backdrop-blur">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex flex-col md:flex-row justify-between items-center gap-3">
+            <div class="flex items-center gap-3">
+                <div class="p-2.5 bg-forensic-accent/10 border border-forensic-accent/30 rounded-xl text-forensic-accent">
+                    <i class="fa-solid fa-bacteria text-2xl"></i>
+                </div>
+                <div>
+                    <h1 class="text-lg sm:text-xl font-bold text-white tracking-tight flex items-center gap-2">
+                        eDNA Microbial Source Tracking (MST)
+                        <span class="text-xs font-semibold px-2 py-0.5 rounded bg-forensic-accent/20 text-forensic-accent border border-forensic-accent/40">v1.8 AI</span>
+                    </h1>
+                    <p class="text-xs text-gray-400">16S rRNA NGS 메타바코딩 기반 불법 분뇨 배출 농가 추적 시스템</p>
+                </div>
+            </div>
+
+            <!-- PRESET BUTTONS -->
+            <div class="flex flex-wrap items-center justify-center gap-2">
+                <span class="text-xs text-gray-400 font-medium mr-1 hidden sm:inline">사건 시나리오:</span>
+                <button onclick="loadPreset('pig')" class="px-3 py-1.5 text-xs font-medium rounded-lg bg-pink-950/60 hover:bg-pink-900 text-pink-300 border border-pink-700/50 transition flex items-center gap-1">
+                    <i class="fa-solid fa-piggy-bank"></i> A농가(돼지) 유출
+                </button>
+                <button onclick="loadPreset('chicken')" class="px-3 py-1.5 text-xs font-medium rounded-lg bg-amber-950/60 hover:bg-amber-900 text-amber-300 border border-amber-700/50 transition flex items-center gap-1">
+                    <i class="fa-solid fa-egg"></i> B농가(닭) 유출
+                </button>
+                <button onclick="loadPreset('cattle')" class="px-3 py-1.5 text-xs font-medium rounded-lg bg-teal-950/60 hover:bg-teal-900 text-teal-300 border border-teal-700/50 transition flex items-center gap-1">
+                    <i class="fa-solid fa-cow"></i> C농가(소) 유출
+                </button>
+                <button onclick="loadPreset('mixed')" class="px-3 py-1.5 text-xs font-medium rounded-lg bg-purple-950/60 hover:bg-purple-900 text-purple-300 border border-purple-700/50 transition flex items-center gap-1">
+                    <i class="fa-solid fa-code-compare"></i> 복합 혼합 유출
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- MAIN CONTENT -->
+    <main class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+        <!-- LEFT COLUMN: CONTROL PANEL & INPUT READS (5 cols) -->
+        <section class="lg:col-span-5 flex flex-col gap-5">
+
+            <!-- SCENARIO BRIEFING CARD -->
+            <div class="glass-card rounded-2xl p-4 shadow-xl border-l-4 border-l-amber-500">
+                <h2 class="text-xs font-bold text-amber-400 uppercase tracking-wider mb-1 flex items-center gap-1.5">
+                    <i class="fa-solid fa-folder-open"></i> 사건 개요 (Forensic Case #2026-0814)
+                </h2>
+                <p class="text-xs text-gray-300 leading-relaxed">
+                    00천 하천 수질 오염 민원 발생. 부근 3개 농가(<strong>A: 돼지, B: 닭, C: 소</strong>) 중 불법 분뇨 무단 방류 주체를 입증하기 위해, 하천 채수 시료에서 eDNA 추출 후 16S rRNA NGS 시퀀싱을 진행함.
+                </p>
+            </div>
+
+            <!-- MARKER INPUT CARD -->
+            <div class="glass-card rounded-2xl p-5 shadow-xl flex-grow flex flex-col justify-between">
+                <div>
+                    <div class="flex justify-between items-center mb-4 border-b border-gray-700/60 pb-2.5">
+                        <h2 class="text-base font-semibold text-white flex items-center gap-2">
+                            <i class="fa-solid fa-sliders text-forensic-accent"></i>
+                            NGS 메타바코딩 미생물 마커 (%)
+                        </h2>
+                        <button onclick="normalizeRatios()" class="text-xs text-forensic-accent hover:underline flex items-center gap-1">
+                            <i class="fa-solid fa-wand-magic-sparkles"></i> 100% 보정
+                        </button>
+                    </div>
+
+                    <div class="space-y-3.5 text-xs" id="markersContainer">
+                        <!-- Marker Sliders Dynamically Generated -->
+                    </div>
+                </div>
+
+                <div class="mt-4 pt-3 border-t border-gray-800 flex items-center justify-between text-xs">
+                    <span class="text-gray-400">Total Read Percentage:</span>
+                    <span id="totalPercentBadge" class="font-bold px-2 py-0.5 rounded text-emerald-400 bg-emerald-950/60 border border-emerald-800">100.0% (정상)</span>
+                </div>
+            </div>
+
+        </section>
+
+        <!-- RIGHT COLUMN: PCA PLOT, AI DECISION & ANALYSIS (7 cols) -->
+        <section class="lg:col-span-7 flex flex-col gap-5">
+
+            <!-- PCA 2D SCATTER PLOT CARD -->
+            <div class="glass-card rounded-2xl p-5 shadow-xl">
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-3 border-b border-gray-700/60 pb-2.5">
+                    <div>
+                        <h2 class="text-base font-semibold text-white flex items-center gap-2">
+                            <i class="fa-solid fa-diagram-project text-forensic-accent"></i>
+                            PCoA / PCA 차원축소 군집 분석 (Principal Component Analysis)
+                        </h2>
+                        <p class="text-[11px] text-gray-400">참조 데이터베이스(농가별 미생물 지문) 대비 채취 샘플(Sample X)의 좌표 좌표 표현</p>
+                    </div>
+                    <span class="text-[11px] text-gray-400 bg-gray-900 px-2 py-1 rounded border border-gray-800">
+                        PC1 (돼지-소 변량 54.2%) | PC2 (닭 변량 31.8%)
+                    </span>
+                </div>
+
+                <!-- Canvas for PCA Scatter -->
+                <div class="relative w-full h-64 sm:h-72">
+                    <canvas id="pcaChart"></canvas>
+                </div>
+
+                <div class="mt-3 flex flex-wrap justify-center gap-4 text-[11px] text-gray-300 bg-gray-900/60 py-2 rounded-xl border border-gray-800">
+                    <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-pink-500"></span> A농가 (돼지 DB)</span>
+                    <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-amber-500"></span> B농가 (닭 DB)</span>
+                    <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-teal-500"></span> C농가 (소 DB)</span>
+                    <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-blue-500"></span> 깨끗한 하천 (Clean Water)</span>
+                    <span class="flex items-center gap-1.5 font-bold text-white"><span class="w-3 h-3 rounded-full bg-red-500 ring-2 ring-white animate-ping"></span> 🎯 현장 채취 시료 (Sample X)</span>
+                </div>
+            </div>
+
+            <!-- AI CLASSIFICATION & PROBABILITY DASHBOARD -->
+            <div class="grid grid-cols-1 md:grid-cols-12 gap-5">
+
+                <!-- Source Probability Bars (5 cols) -->
+                <div class="md:col-span-5 glass-card rounded-2xl p-4 shadow-xl flex flex-col justify-between">
+                    <h3 class="text-xs font-bold text-gray-200 mb-3 flex items-center gap-1.5">
+                        <i class="fa-solid fa-chart-bar text-forensic-accent"></i> AI 모델 농가별 일치 확률 (Random Forest)
+                    </h3>
+
+                    <div class="space-y-3 text-xs">
+                        <!-- Pig Farm -->
+                        <div>
+                            <div class="flex justify-between mb-1">
+                                <span class="font-medium text-pink-300">A 농가 (돼지 분뇨)</span>
+                                <span id="probPig" class="font-mono font-bold text-pink-400">0.0%</span>
+                            </div>
+                            <div class="w-full h-2 bg-gray-800 rounded-full overflow-hidden">
+                                <div id="barPig" class="h-full bg-pink-500 transition-all duration-500" style="width: 0%"></div>
+                            </div>
+                        </div>
+                        <!-- Chicken Farm -->
+                        <div>
+                            <div class="flex justify-between mb-1">
+                                <span class="font-medium text-amber-300">B 농가 (닭 분뇨)</span>
+                                <span id="probChicken" class="font-mono font-bold text-amber-400">0.0%</span>
+                            </div>
+                            <div class="w-full h-2 bg-gray-800 rounded-full overflow-hidden">
+                                <div id="barChicken" class="h-full bg-amber-500 transition-all duration-500" style="width: 0%"></div>
+                            </div>
+                        </div>
+                        <!-- Cattle Farm -->
+                        <div>
+                            <div class="flex justify-between mb-1">
+                                <span class="font-medium text-teal-300">C 농가 (소 분뇨)</span>
+                                <span id="probCattle" class="font-mono font-bold text-teal-400">0.0%</span>
+                            </div>
+                            <div class="w-full h-2 bg-gray-800 rounded-full overflow-hidden">
+                                <div id="barCattle" class="h-full bg-teal-500 transition-all duration-500" style="width: 0%"></div>
+                            </div>
+                        </div>
+                        <!-- Clean Background -->
+                        <div>
+                            <div class="flex justify-between mb-1">
+                                <span class="font-medium text-blue-300">자연 하천 미생물</span>
+                                <span id="probWater" class="font-mono font-bold text-blue-400">0.0%</span>
+                            </div>
+                            <div class="w-full h-2 bg-gray-800 rounded-full overflow-hidden">
+                                <div id="barWater" class="h-full bg-blue-500 transition-all duration-500" style="width: 0%"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mt-3 pt-2 border-t border-gray-800 text-[10px] text-gray-400">
+                        * K-Nearest Neighbors & Random Forest 앙상블 분류 알고리즘 적용
+                    </div>
+                </div>
+
+                <!-- FORENSIC DECISION BOX (7 cols) -->
+                <div class="md:col-span-7 glass-card rounded-2xl p-5 shadow-xl border-l-4 border-l-forensic-accent flex flex-col justify-between">
+                    <div>
+                        <span class="text-[10px] font-bold uppercase tracking-wider text-forensic-accent">Final Forensic Identification</span>
+                        <h3 class="text-sm font-bold text-white mb-2">법과학 최종 감정 의견서</h3>
+
+                        <div id="decisionCard" class="p-3.5 rounded-xl bg-gray-900/80 border border-gray-700/80 mb-3">
+                            <div class="text-xs font-bold text-gray-300 mb-1" id="decisionTitle">감정 결과 분석 중...</div>
+                            <p class="text-xs text-gray-400 leading-relaxed" id="decisionDetail">
+                                NGS 마커 데이터 입력을 기다리고 있습니다.
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center justify-between text-xs bg-gray-900/40 p-2.5 rounded-lg border border-gray-800">
+                        <span class="text-gray-400">법적 증거 입증 수준:</span>
+                        <span id="evidenceLevelBadge" class="font-bold px-2 py-0.5 rounded text-emerald-400 bg-emerald-950/60 border border-emerald-800">
+                            입증 가능 (Valid)
+                        </span>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- TEACHING & METHODOLOGY CARD -->
+            <div class="glass-card rounded-2xl p-5 shadow-xl">
+                <h3 class="text-xs font-bold text-white mb-2 flex items-center gap-2 border-b border-gray-700/60 pb-2">
+                    <i class="fa-solid fa-graduation-cap text-forensic-accent"></i>
+                    과학수사 핵심 개념 (Microbial Source Tracking & eDNA)
+                </h3>
+                <ul class="text-xs text-gray-300 space-y-1.5 list-disc list-inside leading-relaxed">
+                    <li><strong>숙주 특이적 마커(Host-Specific Marker):</strong> 가축의 장내 환경(소화 구조, 사료)에 따라 <em>Lactobacillus amylovorus</em>(돼지), <em>Gallibacterium</em>(닭), <em>Ruminococcus</em>(소) 등 고유 미생물이 다르게 서식합니다.</li>
+                    <li><strong>PCA/PCoA 차원축소:</strong> 수천 개의 미생물 OTU 변수를 2차원(PC1, PC2) 축으로 압축하여 샘플 간 유전적 거리(Bray-Curtis Distance)를 직관적으로 군집화합니다.</li>
+                    <li><strong>법적 증거 가치:</strong> 오염원의 단순 존재 여부를 넘어, 배출 농가 미생물 지문과의 통계적 일치 확률을 제시함으로써 수질 오염 손해배상 및 불법 유기 형사 처벌의 정밀 증거로 채택됩니다.</li>
+                </ul>
+            </div>
+
+        </section>
+
+    </main>
+
+    <!-- FOOTER -->
+    <footer class="border-t border-gray-800 py-3.5 text-center text-xs text-gray-500">
+        <p>환경 법과학 & eDNA 메타바코딩 AI 학습용 시뮬레이터 | Educational Forensic Science Web App</p>
+        <p class="mt-1">© Yeonbum Kim · <a href="mailto:yeonbumk@gmail.com" class="underline underline-offset-2 hover:text-slate-300">yeonbumk@gmail.com</a></p>
+    </footer>
+
+    <!-- JAVASCRIPT LOGIC -->
+    <script>
+        // 6 Key Microbial Markers Definition with Weight Profiles
+        const MARKERS = [
+            { id: 'm_pig1', name: 'Lactobacillus amylovorus', target: '돼지(A농가)', color: '#ff70a6', defaultRatio: 42, weights: { pig: 0.9, chicken: 0.05, cattle: 0.05, water: 0.0 } },
+            { id: 'm_pig2', name: 'Bacteroidales (Porcine strain)', target: '돼지(A농가)', color: '#f72585', defaultRatio: 28, weights: { pig: 0.85, chicken: 0.05, cattle: 0.1, water: 0.0 } },
+            { id: 'm_chicken1', name: 'Gallibacterium anatis', target: '닭(B농가)', color: '#ff9f1c', defaultRatio: 5, weights: { pig: 0.05, chicken: 0.9, cattle: 0.05, water: 0.0 } },
+            { id: 'm_chicken2', name: 'Lactobacillus salivarius', target: '닭(B농가)', color: '#ffbf69', defaultRatio: 5, weights: { pig: 0.1, chicken: 0.8, cattle: 0.1, water: 0.0 } },
+            { id: 'm_cattle1', name: 'Ruminococcus flavefaciens', target: '소(C농가)', color: '#2ec4b6', defaultRatio: 8, weights: { pig: 0.05, chicken: 0.05, cattle: 0.9, water: 0.0 } },
+            { id: 'm_water1', name: 'Polynucleobacter (Clean Water)', target: '자연 하천', color: '#3a86ff', defaultRatio: 12, weights: { pig: 0.0, chicken: 0.0, cattle: 0.0, water: 1.0 } }
+        ];
+
+        // Reference Cluster Centroids for PCA Plotting
+        const REFERENCE_CLUSTERS = {
+            pig: { cx: -4.5, cy: 3.2, color: '#ff70a6', label: 'A농가(돼지) DB' },
+            chicken: { cx: 0.5, cy: -5.0, color: '#ff9f1c', label: 'B농가(닭) DB' },
+            cattle: { cx: 4.8, cy: 3.5, color: '#2ec4b6', label: 'C농가(소) DB' },
+            water: { cx: -0.2, cy: 1.2, color: '#3a86ff', label: '자연하천 DB' }
+        };
+
+        // Generate Synthetic Reference DB Scatter Points
+        function generateClusterPoints(cx, cy, count, spread) {
+            let pts = [];
+            for (let i = 0; i < count; i++) {
+                pts.push({
+                    x: cx + (Math.random() - 0.5) * spread,
+                    y: cy + (Math.random() - 0.5) * spread
+                });
+            }
+            return pts;
+        }
+
+        const REF_DB_POINTS = {
+            pig: generateClusterPoints(REFERENCE_CLUSTERS.pig.cx, REFERENCE_CLUSTERS.pig.cy, 18, 1.6),
+            chicken: generateClusterPoints(REFERENCE_CLUSTERS.chicken.cx, REFERENCE_CLUSTERS.chicken.cy, 18, 1.6),
+            cattle: generateClusterPoints(REFERENCE_CLUSTERS.cattle.cx, REFERENCE_CLUSTERS.cattle.cy, 18, 1.6),
+            water: generateClusterPoints(REFERENCE_CLUSTERS.water.cx, REFERENCE_CLUSTERS.water.cy, 18, 1.4)
+        };
+
+        let pcaChart = null;
+
+        // Init App
+        window.addEventListener('DOMContentLoaded', () => {
+            renderMarkerInputs();
+            initPCAChart();
+            calculateMST();
+        });
+
+        // Render Inputs
+        function renderMarkerInputs() {
+            const container = document.getElementById('markersContainer');
+            container.innerHTML = '';
+
+            MARKERS.forEach(m => {
+                const div = document.createElement('div');
+                div.className = 'bg-gray-900/50 p-2.5 rounded-xl border border-gray-800/80 hover:border-gray-700 transition';
+                div.innerHTML = `
+                    <div class="flex justify-between items-center mb-1">
+                        <label class="font-medium text-gray-200 flex items-center gap-1.5">
+                            <span class="w-2.5 h-2.5 rounded-full inline-block" style="background-color: ${m.color}"></span>
+                            <span class="font-serif italic">${m.name}</span>
+                            <span class="text-[10px] text-gray-400 font-sans">(${m.target})</span>
+                        </label>
+                        <div class="flex items-center gap-1">
+                            <input type="number" id="num_${m.id}" min="0" max="100" step="1" value="${m.defaultRatio}"
+                                oninput="syncInput('${m.id}', 'num')"
+                                class="w-14 bg-gray-800 border border-gray-700 text-right text-xs font-mono text-forensic-accent rounded px-1.5 py-0.5 focus:outline-none focus:border-forensic-accent">
+                            <span class="text-gray-400 text-[11px]">%</span>
+                        </div>
+                    </div>
+                    <input type="range" id="range_${m.id}" min="0" max="100" step="1" value="${m.defaultRatio}"
+                        oninput="syncInput('${m.id}', 'range')"
+                        class="w-full h-1.5 bg-gray-800 rounded-lg appearance-none cursor-pointer">
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        function syncInput(id, source) {
+            const range = document.getElementById(`range_${id}`);
+            const num = document.getElementById(`num_${id}`);
+
+            if (source === 'range') num.value = range.value;
+            else range.value = num.value;
+
+            checkTotalPercent();
+            calculateMST();
+        }
+
+        function checkTotalPercent() {
+            let sum = 0;
+            MARKERS.forEach(m => {
+                sum += parseFloat(document.getElementById(`num_${m.id}`).value) || 0;
+            });
+            const badge = document.getElementById('totalPercentBadge');
+            if (Math.abs(sum - 100) < 0.5) {
+                badge.className = 'font-bold px-2 py-0.5 rounded text-emerald-400 bg-emerald-950/60 border border-emerald-800';
+                badge.innerText = `${sum.toFixed(1)}% (정상)`;
+            } else {
+                badge.className = 'font-bold px-2 py-0.5 rounded text-amber-400 bg-amber-950/60 border border-amber-800';
+                badge.innerText = `${sum.toFixed(1)}% (100% 권장)`;
+            }
+            return sum;
+        }
+
+        function normalizeRatios() {
+            let sum = checkTotalPercent();
+            if (sum === 0) return;
+            MARKERS.forEach(m => {
+                const num = document.getElementById(`num_${m.id}`);
+                const range = document.getElementById(`range_${m.id}`);
+                const val = ((parseFloat(num.value) / sum) * 100).toFixed(1);
+                num.value = val;
+                range.value = val;
+            });
+            checkTotalPercent();
+            calculateMST();
+        }
+
+        // Preset Scenario Loader
+        function loadPreset(type) {
+            let preset = {};
+            if (type === 'pig') {
+                preset = { m_pig1: 52, m_pig2: 34, m_chicken1: 2, m_chicken2: 3, m_cattle1: 2, m_water1: 7 };
+            } else if (type === 'chicken') {
+                preset = { m_pig1: 3, m_pig2: 2, m_chicken1: 48, m_chicken2: 38, m_cattle1: 2, m_water1: 7 };
+            } else if (type === 'cattle') {
+                preset = { m_pig1: 2, m_pig2: 3, m_chicken1: 2, m_chicken2: 1, m_cattle1: 82, m_water1: 10 };
+            } else if (type === 'mixed') {
+                preset = { m_pig1: 35, m_pig2: 20, m_chicken1: 25, m_chicken2: 10, m_cattle1: 5, m_water1: 5 };
+            }
+
+            MARKERS.forEach(m => {
+                const val = preset[m.id] !== undefined ? preset[m.id] : 0;
+                document.getElementById(`num_${m.id}`).value = val;
+                document.getElementById(`range_${m.id}`).value = val;
+            });
+
+            checkTotalPercent();
+            calculateMST();
+        }
+
+        // Initialize PCA Chart using Chart.js
+        function initPCAChart() {
+            const ctx = document.getElementById('pcaChart').getContext('2d');
+            pcaChart = new Chart(ctx, {
+                type: 'scatter',
+                data: {
+                    datasets: [
+                        {
+                            label: 'A농가 (돼지 DB)',
+                            data: REF_DB_POINTS.pig,
+                            backgroundColor: 'rgba(255, 112, 166, 0.4)',
+                            borderColor: '#ff70a6',
+                            borderWidth: 1,
+                            pointRadius: 4
+                        },
+                        {
+                            label: 'B농가 (닭 DB)',
+                            data: REF_DB_POINTS.chicken,
+                            backgroundColor: 'rgba(255, 159, 28, 0.4)',
+                            borderColor: '#ff9f1c',
+                            borderWidth: 1,
+                            pointRadius: 4
+                        },
+                        {
+                            label: 'C농가 (소 DB)',
+                            data: REF_DB_POINTS.cattle,
+                            backgroundColor: 'rgba(46, 196, 182, 0.4)',
+                            borderColor: '#2ec4b6',
+                            borderWidth: 1,
+                            pointRadius: 4
+                        },
+                        {
+                            label: '자연하천 DB',
+                            data: REF_DB_POINTS.water,
+                            backgroundColor: 'rgba(58, 134, 255, 0.4)',
+                            borderColor: '#3a86ff',
+                            borderWidth: 1,
+                            pointRadius: 4
+                        },
+                        {
+                            label: '현장 채취 시료 (Sample X)',
+                            data: [{ x: 0, y: 0 }],
+                            backgroundColor: '#ff0055',
+                            borderColor: '#ffffff',
+                            borderWidth: 2,
+                            pointRadius: 9,
+                            pointHoverRadius: 11
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return `${context.dataset.label}: (${context.parsed.x.toFixed(2)}, ${context.parsed.y.toFixed(2)})`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            title: { display: true, text: 'PC1 (Principal Component 1: 54.2%)', color: '#9ca3af', font: { size: 10 } },
+                            grid: { color: 'rgba(255, 255, 255, 0.05)' },
+                            ticks: { color: '#6b7280', font: { size: 9 } },
+                            min: -7, max: 7
+                        },
+                        y: {
+                            title: { display: true, text: 'PC2 (Principal Component 2: 31.8%)', color: '#9ca3af', font: { size: 10 } },
+                            grid: { color: 'rgba(255, 255, 255, 0.05)' },
+                            ticks: { color: '#6b7280', font: { size: 9 } },
+                            min: -7, max: 7
+                        }
+                    }
+                }
+            });
+        }
+
+        // MST Calculation Engine
+        function calculateMST() {
+            let total = 0;
+            let vals = {};
+            MARKERS.forEach(m => {
+                let v = parseFloat(document.getElementById(`num_${m.id}`).value) || 0;
+                vals[m.id] = v;
+                total += v;
+            });
+
+            const scale = total > 0 ? 100 / total : 1;
+
+            // Calculate Raw Source Scores based on Marker Weights
+            let scores = { pig: 0, chicken: 0, cattle: 0, water: 0 };
+
+            MARKERS.forEach(m => {
+                const normVal = vals[m.id] * scale;
+                scores.pig += normVal * m.weights.pig;
+                scores.chicken += normVal * m.weights.chicken;
+                scores.cattle += normVal * m.weights.cattle;
+                scores.water += normVal * m.weights.water;
+            });
+
+            const scoreSum = scores.pig + scores.chicken + scores.cattle + scores.water;
+            let probs = {
+                pig: scoreSum > 0 ? (scores.pig / scoreSum) * 100 : 0,
+                chicken: scoreSum > 0 ? (scores.chicken / scoreSum) * 100 : 0,
+                cattle: scoreSum > 0 ? (scores.cattle / scoreSum) * 100 : 0,
+                water: scoreSum > 0 ? (scores.water / scoreSum) * 100 : 0
+            };
+
+            // Calculate Dynamic PCA Coordinates for Sample X
+            // PC1 separates Pig (Left) vs Cattle (Right)
+            // PC2 separates Chicken (Bottom) vs Mammals (Top)
+            let sampleX = (probs.cattle * 0.055) - (probs.pig * 0.050) + (probs.water * -0.002);
+            let sampleY = (probs.pig * 0.035) + (probs.cattle * 0.038) - (probs.chicken * 0.052) + (probs.water * 0.012);
+
+            // Update Scatter Plot Dataset 4 (Sample X)
+            if (pcaChart) {
+                pcaChart.data.datasets[4].data = [{ x: sampleX, y: sampleY }];
+                pcaChart.update();
+            }
+
+            // Update UI Bars and Decision
+            updateUI(probs);
+        }
+
+        function updateUI(probs) {
+            document.getElementById('probPig').innerText = `${probs.pig.toFixed(1)}%`;
+            document.getElementById('probChicken').innerText = `${probs.chicken.toFixed(1)}%`;
+            document.getElementById('probCattle').innerText = `${probs.cattle.toFixed(1)}%`;
+            document.getElementById('probWater').innerText = `${probs.water.toFixed(1)}%`;
+
+            document.getElementById('barPig').style.width = `${probs.pig}%`;
+            document.getElementById('barChicken').style.width = `${probs.chicken}%`;
+            document.getElementById('barCattle').style.width = `${probs.cattle}%`;
+            document.getElementById('barWater').style.width = `${probs.water}%`;
+
+            // Determine Decision
+            const maxVal = Math.max(probs.pig, probs.chicken, probs.cattle, probs.water);
+            const decisionTitle = document.getElementById('decisionTitle');
+            const decisionDetail = document.getElementById('decisionDetail');
+            const badge = document.getElementById('evidenceLevelBadge');
+
+            if (maxVal === probs.water && probs.water > 70) {
+                decisionTitle.className = "text-xs font-bold text-blue-400 mb-1";
+                decisionTitle.innerText = "🔍 오염 미감지 (자연 하천 정상 수질)";
+                decisionDetail.innerHTML = "가축 특이적 미생물 마커 분출이 경미하며, 자연 하천 상주균 군집과 일치합니다. 무단 방류 혐의 없음.";
+                badge.className = "font-bold px-2 py-0.5 rounded text-gray-400 bg-gray-800 border border-gray-700";
+                badge.innerText = "혐의 없음";
+            } else if (probs.pig === maxVal) {
+                decisionTitle.className = "text-xs font-bold text-pink-400 mb-1";
+                decisionTitle.innerText = `🚨 피의 오염원 특정: A 농가 (돼지 분뇨) - 일치도 ${probs.pig.toFixed(1)}%`;
+                decisionDetail.innerHTML = `하천 시료 eDNA 분석 결과, 돼지 장내 특이적 마커(<em>L. amylovorus</em>) 군집이 우점종으로 검출되어 <strong>A 농가 분뇨 유출 가능성이 극히 높음</strong>을 입증합니다.`;
+                setEvidenceBadge(probs.pig, badge);
+            } else if (probs.chicken === maxVal) {
+                decisionTitle.className = "text-xs font-bold text-amber-400 mb-1";
+                decisionTitle.innerText = `🚨 피의 오염원 특정: B 농가 (닭 계분) - 일치도 ${probs.chicken.toFixed(1)}%`;
+                decisionDetail.innerHTML = `가금류 맹장 상주 세균(<em>Gallibacterium anatis</em>) eDNA 유전자 지문이 압도적으로 검출되어 <strong>B 농가(닭 계분) 유출</strong>로 입증됩니다.`;
+                setEvidenceBadge(probs.chicken, badge);
+            } else if (probs.cattle === maxVal) {
+                decisionTitle.className = "text-xs font-bold text-teal-400 mb-1";
+                decisionTitle.innerText = `🚨 피의 오염원 특정: C 농가 (소 우분) - 일치도 ${probs.cattle.toFixed(1)}%`;
+                decisionDetail.innerHTML = `반추동물 제1위 혐기성 분해균(<em>Ruminococcus flavefaciens</em>) 메타바코딩 비율이 높아 <strong>C 농가(소 우분) 유출</strong>이 명확합니다.`;
+                setEvidenceBadge(probs.cattle, badge);
+            } else {
+                decisionTitle.className = "text-xs font-bold text-purple-400 mb-1";
+                decisionTitle.innerText = `⚠️ 복합 오염원 유출 정황 감지`;
+                decisionDetail.innerHTML = `단일 농가가 아닌 복수의 가축 분뇨가 혼합 유출되었거나 상류 합류 지점에서 오염이 통합된 정황입니다. 추가 정밀 qPCR 감정을 권장합니다.`;
+                badge.className = "font-bold px-2 py-0.5 rounded text-purple-400 bg-purple-950/60 border border-purple-800";
+                badge.innerText = "추가 수사 필요";
+            }
+        }
+
+        function setEvidenceBadge(prob, badge) {
+            if (prob >= 85) {
+                badge.className = "font-bold px-2 py-0.5 rounded text-emerald-400 bg-emerald-950/60 border border-emerald-800";
+                badge.innerText = "법적 증거 입증 가능 (Strong)";
+            } else if (prob >= 60) {
+                badge.className = "font-bold px-2 py-0.5 rounded text-amber-400 bg-amber-950/60 border border-amber-800";
+                badge.innerText = "보강 수사 필요 (Moderate)";
+            } else {
+                badge.className = "font-bold px-2 py-0.5 rounded text-rose-400 bg-rose-950/60 border border-rose-800";
+                badge.innerText = "증거 능력 미달 (Weak)";
+            }
+        }
+    </script>
+</body>
+</html>

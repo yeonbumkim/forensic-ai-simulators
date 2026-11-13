@@ -1,0 +1,624 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>2027 수능 이슈: AI 글라스 실시간 풀이 파이프라인 시뮬레이터 (STT 포함)</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts: Orbitron & Noto Sans KR -->
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;800;900&family=Noto+Sans+KR:wght@300;400;500;700;900&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        hud: {
+                            bg: '#050811',
+                            panel: '#0d1322',
+                            border: '#1e293b',
+                            cyan: '#00f5d4',
+                            neonBlue: '#3b82f6',
+                            purple: '#a855f7',
+                            emerald: '#10b981',
+                            amber: '#f59e0b',
+                            rose: '#f43f5e'
+                        }
+                    },
+                    fontFamily: {
+                        hud: ['Orbitron', 'sans-serif'],
+                        sans: ['Noto Sans KR', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { background-color: #050811; color: #f8fafc; font-family: 'Noto Sans KR', sans-serif; }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #0d1322; }
+        ::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #00f5d4; }
+        
+        .hud-glass {
+            background: rgba(13, 19, 34, 0.85);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(0, 245, 212, 0.15);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.5);
+        }
+        
+        .glow-cyan {
+            box-shadow: 0 0 20px rgba(0, 245, 212, 0.35);
+        }
+
+        .glow-amber {
+            box-shadow: 0 0 20px rgba(245, 158, 11, 0.35);
+        }
+
+        /* Scanline Animation */
+        .scanline-container {
+            position: relative;
+            overflow: hidden;
+        }
+        .scanline-anim {
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, transparent, #00f5d4, transparent);
+            box-shadow: 0 0 15px #00f5d4;
+            animation: scan 2.5s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+        }
+        @keyframes scan {
+            0% { top: 0%; opacity: 0.8; }
+            50% { top: 95%; opacity: 1; }
+            100% { top: 0%; opacity: 0.8; }
+        }
+
+        /* HUD Reticle Animation */
+        .reticle-pulse {
+            animation: reticle 1.5s ease-in-out infinite alternate;
+        }
+        @keyframes reticle {
+            from { transform: scale(0.96); opacity: 0.7; }
+            to { transform: scale(1.04); opacity: 1; }
+        }
+
+        /* Audio Waveform Animation */
+        .wave-bar {
+            animation: wave 1.2s ease-in-out infinite alternate;
+        }
+        @keyframes wave {
+            0% { height: 6px; }
+            50% { height: 28px; }
+            100% { height: 10px; }
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col font-sans selection:bg-hud-cyan selection:text-black">
+    <nav class="bg-slate-900 border-b border-slate-800 px-4 py-2 text-xs"><a href="../index.html" class="inline-flex items-center gap-1.5 text-slate-300 hover:text-white"><i class="fa-solid fa-house" aria-hidden="true"></i> 시뮬레이터 홈</a></nav>
+
+    <!-- DEMO DISCLAIMER BANNER -->
+    <div class="bg-gradient-to-r from-amber-600 via-amber-500 to-amber-600 text-black py-2.5 px-4 text-center font-bold text-xs sm:text-sm shadow-md tracking-wide flex items-center justify-center gap-2 z-50">
+        <i class="fa-solid fa-triangle-exclamation text-base animate-pulse"></i>
+        <span>⚠️ 본 웹페이지는 수능 부정행위 방지 교육 및 AI 글라스 멀티모달/STT 파이프라인 분석을 위한 데모 시뮬레이터입니다. (DEMO ONLY - NOT FOR REAL EXAM USE)</span>
+    </div>
+
+    <!-- TOP EMERGENCY ALERT BANNER -->
+    <div class="bg-gradient-to-r from-rose-950 via-slate-900 to-rose-950 border-b border-rose-800 text-rose-300 py-2 px-4 text-center font-bold text-xs sm:text-sm flex items-center justify-center gap-2 z-50">
+        <i class="fa-solid fa-triangle-exclamation text-rose-400 text-base animate-pulse"></i>
+        <span>[2027 수능 최신 이슈] AI 글라스 실시간 수능 비전 & STT 듣기평가 부정행위 파이프라인 시뮬레이터</span>
+    </div>
+
+    <!-- HEADER -->
+    <header class="border-b border-slate-800 bg-hud-bg/90 sticky top-0 z-40 backdrop-blur">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex flex-col md:flex-row justify-between items-center gap-4">
+            <div class="flex items-center gap-3">
+                <div class="p-2.5 bg-hud-cyan/10 border border-hud-cyan/40 rounded-xl text-hud-cyan glow-cyan">
+                    <i class="fa-solid fa-glasses text-2xl"></i>
+                </div>
+                <div>
+                    <h1 class="text-lg sm:text-xl font-black text-white tracking-tight flex items-center gap-2.5 font-hud">
+                        AI GLASSES CSAT SOLVER
+                        <span class="text-xs font-semibold px-2.5 py-0.5 rounded bg-hud-cyan/20 text-hud-cyan border border-hud-cyan/40 font-mono">v4.0 STT+Vision</span>
+                    </h1>
+                    <p class="text-xs text-slate-400">카메라 렌즈 수신 ➔ OCR ➔ Multimodal ➔ STT 듣기평가 캐치 ➔ LLM 정답 ➔ HUD 디스플레이</p>
+                </div>
+            </div>
+
+            <!-- SAMPLE QUESTION PRESETS INCLUDING STT -->
+            <div class="flex flex-wrap items-center gap-2">
+                <span class="text-xs text-slate-400 font-medium mr-1 hidden sm:inline">수능 영역 선택:</span>
+                <button onclick="loadSamplePreset(0)" class="px-3 py-1.5 text-xs font-bold rounded-lg bg-slate-800 hover:bg-amber-950/80 text-amber-400 border border-amber-500/50 transition flex items-center gap-1.5 glow-amber">
+                    <i class="fa-solid fa-headphones"></i> [NEW] 영어 듣기평가 (STT)
+                </button>
+                <button onclick="loadSamplePreset(1)" class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-800 hover:bg-slate-700 text-hud-cyan border border-hud-cyan/40 transition flex items-center gap-1.5">
+                    <i class="fa-solid fa-file-signature"></i> 국어 비문학
+                </button>
+                <button onclick="loadSamplePreset(2)" class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-800 hover:bg-slate-700 text-blue-400 border border-blue-500/40 transition flex items-center gap-1.5">
+                    <i class="fa-solid fa-square-root-variable"></i> 수학 미적분
+                </button>
+                <button onclick="loadSamplePreset(3)" class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-800 hover:bg-slate-700 text-purple-400 border border-purple-500/40 transition flex items-center gap-1.5">
+                    <i class="fa-solid fa-flask"></i> 탐구 화학 I
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- MAIN CONTENT CONTAINER -->
+    <main class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 flex flex-col gap-6">
+
+        <!-- 1. Interactive Step Selector Flow Bar (7 Steps) -->
+        <section class="hud-glass rounded-2xl p-5 shadow-2xl">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xs font-extrabold text-hud-cyan uppercase tracking-widest flex items-center gap-2 font-hud">
+                    <i class="fa-solid fa-network-wired text-hud-cyan"></i> AI GLASSES REALTIME 7-STEP PIPELINE
+                </h2>
+                <button id="autoRunBtn" onclick="toggleAutoFlow()" class="px-4 py-1.5 bg-hud-cyan text-slate-950 font-black text-xs rounded-xl hover:bg-emerald-300 transition flex items-center gap-1.5 shadow-lg">
+                    <i id="autoRunIcon" class="fa-solid fa-play"></i> <span id="autoRunText">전체 시뮬레이션 자동 실행</span>
+                </button>
+            </div>
+
+            <!-- 7 Steps Grid Buttons -->
+            <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2 text-xs font-sans">
+                <!-- Step 1 -->
+                <button id="stepBtn1" onclick="setStep(1)" class="p-2.5 rounded-xl bg-slate-900 border border-hud-cyan text-hud-cyan font-bold transition flex flex-col items-center gap-1 text-center">
+                    <span class="text-[9px] font-mono opacity-80">STEP 01</span>
+                    <span class="text-xs"><i class="fa-solid fa-eye text-xs"></i> 렌즈 수신</span>
+                </button>
+                <!-- Step 2 -->
+                <button id="stepBtn2" onclick="setStep(2)" class="p-2.5 rounded-xl bg-slate-900 border border-slate-800 text-slate-400 font-bold transition flex flex-col items-center gap-1 text-center hover:border-slate-700">
+                    <span class="text-[9px] font-mono opacity-80">STEP 02</span>
+                    <span class="text-xs"><i class="fa-solid fa-camera text-xs"></i> 4K 캡처</span>
+                </button>
+                <!-- Step 3 -->
+                <button id="stepBtn3" onclick="setStep(3)" class="p-3 rounded-xl bg-slate-900 border border-slate-800 text-slate-400 font-bold transition flex flex-col items-center gap-1 text-center hover:border-slate-700">
+                    <span class="text-[9px] font-mono opacity-80">STEP 03</span>
+                    <span class="text-xs"><i class="fa-solid fa-font text-xs"></i> OCR 인식</span>
+                </button>
+                <!-- Step 4 -->
+                <button id="stepBtn4" onclick="setStep(4)" class="p-2.5 rounded-xl bg-slate-900 border border-slate-800 text-slate-400 font-bold transition flex flex-col items-center gap-1 text-center hover:border-slate-700">
+                    <span class="text-[9px] font-mono opacity-80">STEP 04</span>
+                    <span class="text-xs"><i class="fa-solid fa-shapes text-xs"></i> Multimodal</span>
+                </button>
+                <!-- Step 5: NEW STT MODULE -->
+                <button id="stepBtn5" onclick="setStep(5)" class="p-2.5 rounded-xl bg-slate-900 border border-amber-500/60 text-amber-400 font-bold transition flex flex-col items-center gap-1 text-center">
+                    <span class="text-[9px] font-mono opacity-80">STEP 05</span>
+                    <span class="text-xs"><i class="fa-solid fa-waveform text-xs"></i> STT 오디오</span>
+                </button>
+                <!-- Step 6 -->
+                <button id="stepBtn6" onclick="setStep(6)" class="p-2.5 rounded-xl bg-slate-900 border border-slate-800 text-slate-400 font-bold transition flex flex-col items-center gap-1 text-center hover:border-slate-700">
+                    <span class="text-[9px] font-mono opacity-80">STEP 06</span>
+                    <span class="text-xs"><i class="fa-solid fa-brain text-xs"></i> LLM 정답</span>
+                </button>
+                <!-- Step 7 -->
+                <button id="stepBtn7" onclick="setStep(7)" class="p-2.5 rounded-xl bg-slate-900 border border-slate-800 text-slate-400 font-bold transition flex flex-col items-center gap-1 text-center hover:border-slate-700">
+                    <span class="text-[9px] font-mono opacity-80">STEP 07</span>
+                    <span class="text-xs"><i class="fa-solid fa-vr-cardboard text-xs"></i> HUD 출력</span>
+                </button>
+            </div>
+        </section>
+
+        <!-- 2. MAIN VISUAL DASHBOARD: VIEWPORT & AUDIO STT PANEL (LEFT) & PIPELINE ENGINE (RIGHT) -->
+        <section class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+            <!-- LEFT: CAMERA LENS VIEWPORT & REALTIME STT AUDIO STREAM (5 cols) -->
+            <div class="lg:col-span-5 hud-glass rounded-2xl p-5 shadow-2xl flex flex-col justify-between gap-4">
+                <div>
+                    <div class="flex justify-between items-center pb-2.5 border-b border-slate-800">
+                        <span class="text-xs font-extrabold text-hud-cyan font-hud flex items-center gap-2">
+                            <i class="fa-solid fa-circle text-rose-500 animate-pulse text-[10px]"></i> GLASSES SENSOR & STT MIC FEED
+                        </span>
+                        <span class="font-mono text-[11px] text-slate-400" id="fpsDisplay">Latency: 118ms</span>
+                    </div>
+
+                    <!-- Camera Viewport Box with HUD Overlay -->
+                    <div class="relative w-full h-64 bg-slate-950 rounded-xl border border-slate-800 scanline-container overflow-hidden flex flex-col items-center justify-center mt-3">
+                        <div class="scanline-anim" id="scanline"></div>
+
+                        <!-- Simulated Camera Paper Content -->
+                        <div id="paperContent" class="p-4 w-full h-full text-slate-300 font-sans text-xs flex flex-col justify-between bg-slate-950 select-none">
+                            <div class="border-b border-slate-800 pb-2 flex justify-between items-center">
+                                <span class="font-bold text-white text-sm" id="paperTitle">[2027 수능] 영어영역 듣기평가</span>
+                                <span class="text-[10px] text-amber-400 border border-amber-500/40 px-2 py-0.5 rounded font-mono" id="qNumber">Q.04</span>
+                            </div>
+
+                            <div class="my-2 bg-slate-900/80 p-3 rounded-lg border border-slate-800 text-[11px] leading-relaxed text-slate-300" id="paperBody">
+                                [방송 음성 수신 중...]<br>
+                                "M: Hello, I'd like to book a flight ticket to London for next Tuesday morning..."
+                            </div>
+
+                            <div class="grid grid-cols-2 gap-2 text-[10px] text-slate-400">
+                                <div class="bg-slate-900 p-2 rounded border border-slate-800" id="paperChoice1">① 화요일 오전 런던행 항공권</div>
+                                <div class="bg-slate-900 p-2 rounded border border-slate-800" id="paperChoice2">② 수요일 오후 파리행 항공권</div>
+                            </div>
+                        </div>
+
+                        <!-- HUD Visual Reticle Overlay -->
+                        <div class="absolute inset-0 border-2 border-hud-cyan/30 pointer-events-none flex flex-col justify-between p-3">
+                            <div class="flex justify-between items-center text-[10px] font-mono text-hud-cyan">
+                                <span>[AI LENS & MIC ACTIVE]</span>
+                                <span id="fovAngle">FOV: 120° HMD</span>
+                            </div>
+
+                            <!-- Bounding Box Overlays -->
+                            <div id="boundingOverlay" class="absolute inset-6 border-2 border-dashed border-rose-500/80 rounded-lg flex items-start justify-end p-2 transition-all opacity-0">
+                                <span class="bg-rose-600 text-white font-mono text-[9px] px-1.5 py-0.5 rounded">Vision & Audio Obj Target</span>
+                            </div>
+
+                            <!-- Center Reticle -->
+                            <div class="absolute inset-0 flex items-center justify-center opacity-60">
+                                <div class="w-10 h-10 border border-hud-cyan rounded-full flex items-center justify-center reticle-pulse">
+                                    <div class="w-2 h-2 bg-hud-cyan rounded-full"></div>
+                                </div>
+                            </div>
+
+                            <div class="flex justify-between items-end text-[10px] font-mono text-slate-400">
+                                <span id="hudResolution">3840 x 2160 4K UHD</span>
+                                <span class="text-hud-cyan">AUDIO SAMPLING: 48kHz</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- REALTIME STT AUDIO WAVEFORM DISPLAY BOX (Step 5 Focused) -->
+                    <div id="sttAudioVisualizer" class="p-3.5 bg-slate-900/90 rounded-xl border border-amber-500/40 flex flex-col gap-2 mt-3">
+                        <div class="flex justify-between items-center text-xs">
+                            <span class="font-bold text-amber-400 flex items-center gap-1.5 font-hud">
+                                <i class="fa-solid fa-waveform animate-pulse"></i> STT SPEECH-TO-TEXT ENGINE
+                            </span>
+                            <span class="text-[10px] font-mono text-emerald-400 bg-emerald-950 px-2 py-0.5 rounded border border-emerald-800">
+                                Audio SNR: 42dB (Clear)
+                            </span>
+                        </div>
+
+                        <!-- Equalizer Animation Bars -->
+                        <div class="flex items-end justify-center gap-1.5 h-8 py-1 bg-slate-950 rounded-lg border border-slate-800">
+                            <div class="w-1.5 bg-amber-400 rounded-full wave-bar" style="animation-delay: 0.1s"></div>
+                            <div class="w-1.5 bg-amber-400 rounded-full wave-bar" style="animation-delay: 0.3s"></div>
+                            <div class="w-1.5 bg-amber-400 rounded-full wave-bar" style="animation-delay: 0.2s"></div>
+                            <div class="w-1.5 bg-amber-400 rounded-full wave-bar" style="animation-delay: 0.5s"></div>
+                            <div class="w-1.5 bg-amber-400 rounded-full wave-bar" style="animation-delay: 0.4s"></div>
+                            <div class="w-1.5 bg-amber-400 rounded-full wave-bar" style="animation-delay: 0.6s"></div>
+                            <div class="w-1.5 bg-amber-400 rounded-full wave-bar" style="animation-delay: 0.25s"></div>
+                            <div class="w-1.5 bg-amber-400 rounded-full wave-bar" style="animation-delay: 0.45s"></div>
+                        </div>
+
+                        <!-- Realtime STT Transcript Box -->
+                        <div class="text-[11px] font-mono text-slate-200 bg-slate-950 p-2.5 rounded-lg border border-slate-800 space-y-1">
+                            <span class="text-slate-400 text-[10px] block">[실시간 시험장 방송 음성 캐치 텍스트]</span>
+                            <p id="sttTranscriptText" class="text-amber-300 font-sans leading-snug">
+                                "M: ...London flight on Tuesday morning... W: Let me check the schedule..."
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="pt-3 border-t border-slate-800 flex items-center justify-between text-xs text-slate-400">
+                    <span>초소형 마이크: <strong class="text-white font-mono">Beamforming 4-Mic</strong></span>
+                    <span class="text-amber-400 font-mono font-bold">Whisper STT Integrated</span>
+                </div>
+            </div>
+
+            <!-- RIGHT: PIPELINE STEP DETAILS & MULTIMODAL/LLM ANALYZER (7 cols) -->
+            <div class="lg:col-span-7 hud-glass rounded-2xl p-5 shadow-2xl border-l-4 border-l-hud-cyan flex flex-col justify-between">
+                <div>
+                    <!-- Step Header Dynamic Card -->
+                    <div class="flex justify-between items-center pb-3 mb-3 border-b border-slate-800">
+                        <div>
+                            <span class="text-[10px] font-extrabold uppercase tracking-widest text-hud-cyan font-hud" id="activeStepTag">CURRENT STEP: 05 / 07</span>
+                            <h3 class="text-base font-bold text-white flex items-center gap-2" id="activeStepTitle">
+                                STEP 05. STT (Speech-to-Text) 방송 음성 실시간 캐치
+                            </h3>
+                        </div>
+                        <span id="stepStatusBadge" class="px-3 py-1 rounded-full text-xs font-bold bg-amber-950 text-amber-400 border border-amber-800">
+                            영어/국어 듣기 음성 실시간 변환
+                        </span>
+                    </div>
+
+                    <!-- Step Processing Animation Display Box -->
+                    <div class="p-4 rounded-xl bg-slate-950/90 border border-slate-800 mb-4 text-xs space-y-3">
+                        <p id="stepDescription" class="text-slate-300 leading-relaxed">
+                            수능 시험장 스피커에서 흘러나오는 영어/국어 듣기평가 음성을 AI 글라스 테에 내장된 빔포밍 마이크로 수신 후, 실시간 STT(Speech-to-Text) 모델이 텍스트로 변환합니다.
+                        </p>
+
+                        <!-- Live Console Log Stream -->
+                        <div class="bg-slate-900/90 p-3 rounded-lg border border-slate-800 font-mono text-[11px] space-y-1 text-slate-400 max-h-36 overflow-y-auto" id="consoleLog">
+                            <div class="text-amber-400">[STT_INIT] Whisper V3 Live Speech Stream Engine Started.</div>
+                            <div>[AUDIO_CAPTURE] 4-Mic Array Filtering Noise. Spoken Language: English (US).</div>
+                            <div>[TRANSCRIPT] "flight to London next Tuesday" -> Keywords Extracted.</div>
+                        </div>
+                    </div>
+
+                    <!-- HUD OUTPUT DISPLAY & ANSWER RESULT BOX (Step 7 Highlight) -->
+                    <div class="bg-slate-900/90 p-4 rounded-xl border border-slate-800" id="hudOutputContainer">
+                        <div class="flex justify-between items-center mb-2">
+                            <span class="text-xs font-extrabold text-hud-cyan font-hud flex items-center gap-1.5">
+                                <i class="fa-solid fa-vr-cardboard"></i> RETINAL HUD DISPLAY & BONE AUDIO OUTPUT
+                            </span>
+                            <span id="hudConfidence" class="text-[11px] font-mono text-emerald-400 font-bold">LLM Confidence: 99.8%</span>
+                        </div>
+
+                        <div id="hudResultBox" class="p-3.5 rounded-lg bg-slate-950 border border-hud-cyan/40 text-xs text-slate-200">
+                            <div class="flex items-center justify-between font-bold mb-1">
+                                <span class="text-amber-400 text-sm" id="hudAnswerText">정답: ①번 (화요일 오전 런던행 항공권)</span>
+                                <span class="text-[10px] text-slate-400 font-mono">Bone Conduction Audio Sent</span>
+                            </div>
+                            <p class="text-[11px] text-slate-400 leading-normal" id="hudExplanation">
+                                [AI 해설] STT 음성 캐치 결과 남자가 "flight ticket to London for next Tuesday morning"이라고 말했으므로 ①번이 유일 정답임.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-4 pt-3 border-t border-slate-800 flex items-center justify-between text-xs text-slate-400">
+                    <span>수능 보안 탐지: <strong class="text-rose-400">초저전력 노이즈 캔슬링 빔포밍 마이크</strong></span>
+                    <span class="font-mono text-slate-300">Processing Latency: 118ms</span>
+                </div>
+            </div>
+
+        </section>
+
+        <!-- 3. FORENSIC & TECHNICAL IMPLICATIONS CARD INCLUDING ANTI-STT COUNTERMEASURES -->
+        <section class="hud-glass rounded-2xl p-5 shadow-2xl">
+            <h3 class="text-xs font-extrabold text-white uppercase tracking-widest mb-3 flex items-center gap-2 border-b border-slate-800 pb-2.5 font-hud">
+                <i class="fa-solid fa-shield-halved text-rose-500"></i> 수능 출제위원회 & 수사기관 기술적 시사점 및 대응책 (STT 포함)
+            </h3>
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 text-xs text-slate-300">
+                <div class="bg-slate-900/60 p-3.5 rounded-xl border border-slate-800 space-y-1.5">
+                    <span class="text-rose-400 font-bold block flex items-center gap-1">
+                        <i class="fa-solid fa-ban text-sm"></i> 1. RF 전파 차단 (Jamming)
+                    </span>
+                    <p class="text-slate-400 text-[11px] leading-relaxed">
+                        LLM 서버와 데이터 송수신을 차단하기 위한 시험장 내 초고주파(5G/Wi-Fi 7) 잼머(Jammer) 및 전파 탐지 장비 가동.
+                    </p>
+                </div>
+                <div class="bg-slate-900/60 p-3.5 rounded-xl border border-slate-800 space-y-1.5">
+                    <span class="text-amber-400 font-bold block flex items-center gap-1">
+                        <i class="fa-solid fa-volume-xmark text-sm"></i> 2. Anti-STT 초음파 워터마크
+                    </span>
+                    <p class="text-slate-400 text-[11px] leading-relaxed">
+                        듣기평가 방송 음원에 사람이 들을 수 없는 비가청 초음파 노이즈(Ultrasonic Noise)를 믹싱하여 STT 변환 오작동 유도.
+                    </p>
+                </div>
+                <div class="bg-slate-900/60 p-3.5 rounded-xl border border-slate-800 space-y-1.5">
+                    <span class="text-hud-cyan font-bold block flex items-center gap-1">
+                        <i class="fa-solid fa-camera-rotate text-sm"></i> 3. IR 반사광 센서 검사
+                    </span>
+                    <p class="text-slate-400 text-[11px] leading-relaxed">
+                        안경 테 내장 초미세 렌즈 카메라와 망막 투사형 HUD 빔을 적외선(IR) 반사광 스캐너로 입실 전 정밀 탐지.
+                    </p>
+                </div>
+                <div class="bg-slate-900/60 p-3.5 rounded-xl border border-slate-800 space-y-1.5">
+                    <span class="text-purple-400 font-bold block flex items-center gap-1">
+                        <i class="fa-solid fa-water-ladder text-sm"></i> 4. 안티 OCR 워터마크
+                    </span>
+                    <p class="text-slate-400 text-[11px] leading-relaxed">
+                        시험지 바탕에 시각적 AI 렌즈 OCR 인식을 방해하는 안티 OCR 미세 패턴 워터마크 수능 시험지 전면 도입.
+                    </p>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- FOOTER -->
+    <footer class="border-t border-slate-800 py-3 text-center text-xs text-slate-500">
+        <p>2027 수능 AI 글라스 Vision & STT 파이프라인 시뮬레이터 | Educational Technology Web App</p>
+        <p class="mt-1">© Yeonbum Kim · <a href="mailto:yeonbumk@gmail.com" class="underline underline-offset-2 hover:text-slate-300">yeonbumk@gmail.com</a></p>
+    </footer>
+
+    <!-- JAVASCRIPT LOGIC -->
+    <script>
+        // Sample Exam Question Presets
+        const QUESTION_PRESETS = [
+            {
+                subject: "영어영역 듣기평가 (STT)",
+                title: "[2027 수능] 영어영역 듣기평가 (Q.04)",
+                qNum: "Q.04 (STT)",
+                body: `[수능 방송 음성 수신 중...]<br>"M: Hello, I'd like to book a flight ticket to London for next Tuesday morning. W: Sure, let me check the available seats..."`,
+                c1: "① 화요일 오전 런던행 항공권",
+                c2: "② 수요일 오후 파리행 항공권",
+                stt: '"M: ...flight ticket to London for next Tuesday morning... W: ...available seats..."',
+                answer: "정답: ①번 (화요일 오전 런던행 항공권)",
+                explanation: "[AI 해설] STT 음성 트랜스크립션 결과 남자가 'London flight for next Tuesday morning'을 요청했으므로 ①번 정답."
+            },
+            {
+                subject: "국어영역 독서",
+                title: "[2027 수능] 국어영역 독서 지문 (Q.24)",
+                qNum: "Q.24 (OCR)",
+                body: `다음 글을 읽고 물음에 답하시오.<br>"인공지능의 양자 신경망 구조에서 파라미터 얽힘(Entanglement) 지수가 극대화될 때, 정보의 손실 없이 차원 축소가 일어나는 기전은..."`,
+                c1: "① 얽힘 지수가 증가하면 차원 축소 비효율성 증가",
+                c2: "② 파라미터 간 상관관계가 전사적 손실을 상쇄",
+                stt: '"[텍스트 독서 지문 영역 - Vision OCR 전용 수신 중]"',
+                answer: "정답: ②번 (상관관계 상쇄)",
+                explanation: "[AI 해설] Vision OCR 분석 결과 3문단 4행에 따라 양자 신경망 얽힘 지수는 정보 손실을 저지하므로 ②번 정답."
+            },
+            {
+                subject: "수학영역 미적분",
+                title: "[2027 수능] 수학영역 미적분 (Q.30)",
+                qNum: "Q.30 (Math)",
+                body: `함수 f(x) = e^(2x) · sin(πx) 에 대하여 구간 [0, 2]에서 극댓값이 발생하는 모든 x의 합을 S라 할 때, 100·S의 값을 구하시오.`,
+                c1: "① f'(x) = 0 조건 만족 x = 0.352, 1.352",
+                c2: "② S = 1.704 산출 ➔ 100S = 170",
+                stt: '"[수학 기하/수식 라텍스 OCR 전용 수신 중]"',
+                answer: "정답: 170 (단답형 도출)",
+                explanation: "[AI 해설] 수식 OCR 결과 f'(x) = e^(2x)(2 sin πx + π cos πx) = 0 풀이에 의해 x의 합 S=1.704 산출됨."
+            },
+            {
+                subject: "탐구영역 화학 I",
+                title: "[2027 수능] 탐구영역 화학 I (Q.18)",
+                qNum: "Q.18 (ViT)",
+                body: `다음은 기체 A(g)와 B(g)가 반응하여 C(g)를 생성하는 화학 반응식이다.<br>a A(g) + b B(g) ➔ c C(g) (a, b, c는 반응 계수)`,
+                c1: "① a = 1, b = 2, c = 2 반응 비율",
+                c2: "② 몰농도 비율 1:2:1 성립",
+                stt: '"[화학 피스톤 구조식 Multimodal ViT 전용 수신 중]"',
+                answer: "정답: ③번 (계수합 a+b+c = 5)",
+                explanation: "[AI 해설] Multimodal ViT로 피스톤 그림 해석 결과 계수 비 a:b:c = 1:2:2 판명됨."
+            }
+        ];
+
+        // 7 Step Information Mapping
+        const STEPS = [
+            {
+                num: 1,
+                title: "STEP 01. 초소형 AI 글라스 렌즈 수신 & 착용 시점",
+                badge: "카메라 프레임 캡처 대기",
+                desc: "수험생이 착용한 안경 테 내장 초소형 카메라 렌즈를 통해 시험지 문제 영역을 실시간 4K 프레임으로 수신하고 광학 줌을 조정합니다.",
+                log: ["[SYS_INIT] AI Glasses Lens System v4.0 Powered On.", "[CAM_FEED] 4K Optical Feed Connected. Resolution: 3840x2160.", "[SENSOR] Eye-tracking Gyro Synced. Ready for frame capture."]
+            },
+            {
+                num: 2,
+                title: "STEP 02. 시험지 고화질 캡처 & 프레임 추출",
+                badge: "4K 스틸 프레임 캡처 완료",
+                desc: "시선이 시험지 문제에 1.2초 이상 고정되면 모션 블러를 제거한 고해상도 스틸 이미지를 캡처하여 메모리 버퍼에 저장합니다.",
+                log: ["[FOCUS] Eye Gaze Lock Detected on Question Area.", "[CAPTURE] High-Res Still Frame Extracted. Exposure Balanced.", "[ENCRYPT] Frame Encrypted with AES-256 for Transmission."]
+            },
+            {
+                num: 3,
+                title: "STEP 03. OCR (광학 문자 인식) 수식 & 지문 추출",
+                badge: "OCR 텍스트 디코딩 완료",
+                desc: "딥러닝 OCR 엔진이 시험지 캡처 이미지에서 지문 텍스트, 수학 수식, 선택지 번호를 디지털 텍스트 데이터로 정밀 추출합니다.",
+                log: ["[OCR_ENGINE] Running Transformer-based Text Recognizer...", "[PARSED] Text: 482 words extracted.", "[MATH_LATEX] Equations parsed to LaTeX format."]
+            },
+            {
+                num: 4,
+                title: "STEP 04. Multimodal 멀티모달 그래프/그림 분석",
+                badge: "Multimodal 객체 바운딩 완료",
+                desc: "이미지 속 그래프, 기하 도형, 화학 구조식, 표 데이터를 Vision Transformer가 객체 검출(Bounding Box)하여 시각적 의미를 해석합니다.",
+                log: ["[MULTIMODAL] Vision Transformer (ViT) Object Detection active.", "[BOUNDING] Graph & Diagram Bounding Box Identified.", "[SEMANTIC] Graph Slope & Axis Labels Mapped to Context."]
+            },
+            {
+                num: 5,
+                title: "STEP 05. STT (Speech-to-Text) 방송 음성 실시간 캐치",
+                badge: "영어/국어 듣기 음성 실시간 변환",
+                desc: "수능 시험장 스피커에서 흘러나오는 영어/국어 듣기평가 음성을 안경 테 내장 빔포밍 마이크로 수신하여 STT 모델이 실시간 텍스트로 트랜스크립션합니다.",
+                log: ["[STT_INIT] Whisper V3 Live Speech Stream Engine Started.", "[AUDIO_CAPTURE] 4-Mic Array Filtering Noise. Spoken Language: English (US).", "[TRANSCRIPT] \"flight to London next Tuesday\" -> Keywords Extracted."]
+            },
+            {
+                num: 6,
+                title: "STEP 06. LLM 지식베이스 연동 & 정답/풀이 도출",
+                badge: "LLM 정답 도출 완료 (99.8%)",
+                desc: "초거대 AI 모델이 OCR 텍스트, Multimodal 시각 정보, STT 오디오 트랜스크립션을 융합 연산하여 정답과 해설을 실시간 계산합니다.",
+                log: ["[LLM_REASONING] Multi-step Chain of Thought (CoT) Executed.", "[SOLVER] Correct Option Verified via Knowledge Graph & STT Text.", "[AUDIO_GEN] Synthesizing Bone-conduction Audio Summary."]
+            },
+            {
+                num: 7,
+                title: "STEP 07. 착용자 초미세 Retinal HUD & 뼈전도 출력",
+                badge: "HUD 실시간 출력 렌더링 중",
+                desc: "도출된 정답과 초간단 요약 해설이 안경 렌즈 우상단 초미세 망막 투사형 HUD 디스플레이와 뼈전도 이어폰으로 착용자에게 전송됩니다.",
+                log: ["[HUD_RENDER] Retinal Micro-LED Projection Active.", "[BONE_AUDIO] Frequency Signal Transmitted via Glass Frame.", "[STREAM_DONE] Solved in 118ms. Ready for next question."]
+            }
+        ];
+
+        let currentStep = 5;
+        let currentPresetIdx = 0;
+        let autoFlowTimer = null;
+        let isAutoRunning = false;
+
+        window.addEventListener('DOMContentLoaded', () => {
+            loadSamplePreset(0);
+            updateStepUI(5);
+        });
+
+        function loadSamplePreset(idx) {
+            currentPresetIdx = idx;
+            const p = QUESTION_PRESETS[idx];
+            document.getElementById('paperTitle').innerText = p.title;
+            document.getElementById('qNumber').innerText = p.qNum;
+            document.getElementById('paperBody').innerHTML = p.body;
+            document.getElementById('paperChoice1').innerText = p.c1;
+            document.getElementById('paperChoice2').innerText = p.c2;
+            document.getElementById('sttTranscriptText').innerText = p.stt;
+            document.getElementById('hudAnswerText').innerText = p.answer;
+            document.getElementById('hudExplanation').innerText = p.explanation;
+
+            if (idx === 0) {
+                setStep(5); // Focus STT Step
+            } else {
+                setStep(1);
+            }
+        }
+
+        function setStep(stepNum) {
+            currentStep = stepNum;
+            updateStepUI(stepNum);
+        }
+
+        function updateStepUI(stepNum) {
+            // Update Step Buttons Style
+            for (let i = 1; i <= 7; i++) {
+                const btn = document.getElementById(`stepBtn${i}`);
+                if (i === stepNum) {
+                    if (i === 5) {
+                        btn.className = "p-2.5 rounded-xl bg-slate-900 border-2 border-amber-400 text-amber-400 font-bold transition flex flex-col items-center gap-1 text-center glow-amber";
+                    } else {
+                        btn.className = "p-2.5 rounded-xl bg-slate-900 border-2 border-hud-cyan text-hud-cyan font-bold transition flex flex-col items-center gap-1 text-center glow-cyan";
+                    }
+                } else {
+                    btn.className = "p-2.5 rounded-xl bg-slate-900 border border-slate-800 text-slate-400 font-bold transition flex flex-col items-center gap-1 text-center hover:border-slate-700";
+                }
+            }
+
+            const info = STEPS[stepNum - 1];
+            document.getElementById('activeStepTag').innerText = `CURRENT STEP: 0${info.num} / 07`;
+            document.getElementById('activeStepTitle').innerText = info.title;
+            document.getElementById('stepStatusBadge').innerText = info.badge;
+            document.getElementById('stepDescription').innerText = info.desc;
+
+            // Update Console Log
+            const logBox = document.getElementById('consoleLog');
+            logBox.innerHTML = '';
+            info.log.forEach(l => {
+                const div = document.createElement('div');
+                div.innerText = l;
+                logBox.appendChild(div);
+            });
+
+            // Camera Overlays according to Step
+            const bounding = document.getElementById('boundingOverlay');
+            const scanline = document.getElementById('scanline');
+            const hudOutput = document.getElementById('hudOutputContainer');
+            const sttBox = document.getElementById('sttAudioVisualizer');
+
+            scanline.style.display = 'block';
+
+            if (stepNum >= 4) {
+                bounding.style.opacity = '1';
+            } else {
+                bounding.style.opacity = '0';
+            }
+
+            if (stepNum === 5) {
+                sttBox.className = "p-3.5 bg-slate-900/90 rounded-xl border-2 border-amber-400 glow-amber flex flex-col gap-2 mt-3 transition-all";
+            } else {
+                sttBox.className = "p-3.5 bg-slate-900/90 rounded-xl border border-amber-500/30 flex flex-col gap-2 mt-3 transition-all";
+            }
+
+            if (stepNum === 7) {
+                hudOutput.className = "bg-slate-900/90 p-4 rounded-xl border-2 border-hud-cyan glow-cyan transition-all";
+            } else {
+                hudOutput.className = "bg-slate-900/90 p-4 rounded-xl border border-slate-800 transition-all";
+            }
+        }
+
+        function toggleAutoFlow() {
+            if (isAutoRunning) {
+                clearInterval(autoFlowTimer);
+                isAutoRunning = false;
+                document.getElementById('autoRunText').innerText = "전체 시뮬레이션 자동 실행";
+                document.getElementById('autoRunIcon').className = "fa-solid fa-play";
+            } else {
+                isAutoRunning = true;
+                document.getElementById('autoRunText').innerText = "시뮬레이션 일시정지";
+                document.getElementById('autoRunIcon').className = "fa-solid fa-pause";
+
+                autoFlowTimer = setInterval(() => {
+                    currentStep = (currentStep % 7) + 1;
+                    updateStepUI(currentStep);
+                }, 2200);
+            }
+        }
+    </script>
+</body>
+</html>
