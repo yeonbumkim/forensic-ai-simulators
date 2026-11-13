@@ -1,0 +1,678 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>수사 기록 진술 모순 탐지 · 신빙성 판독 AI 시뮬레이터</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
+        body { font-family: 'Pretendard', sans-serif; background: #0b0f1a; color: #e2e8f0; }
+        .card { background: #121a2b; border: 1px solid #222e47; }
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #121a2b; }
+        ::-webkit-scrollbar-thumb { background: #2b3a5a; border-radius: 4px; }
+        input[type=range] { accent-color: #f43f5e; }
+        .claim { cursor: pointer; border-radius: 3px; padding: 0 2px; transition: background-color 200ms ease; }
+        .claim-neutral { border-bottom: 1px dashed #64748b; }
+        .claim-support { background: rgb(16 185 129 / 0.12); border-bottom: 2px solid rgb(16 185 129 / 0.7); }
+        .claim-conflict { background: rgb(244 63 94 / 0.18); border-bottom: 2px solid #f43f5e; color: #fecdd3; }
+        .flash { outline: 2px solid #fbbf24; outline-offset: 2px; }
+        .stripe { background-image: repeating-linear-gradient(45deg, rgb(244 63 94 / 0.35) 0 6px, transparent 6px 12px); }
+        @media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition: none !important; animation: none !important; } }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col antialiased">
+    <nav class="bg-slate-900 border-b border-slate-800 px-4 py-2 text-xs"><a href="../index.html" class="inline-flex items-center gap-1.5 text-slate-300 hover:text-white"><i class="fa-solid fa-house" aria-hidden="true"></i> 시뮬레이터 홈</a></nav>
+
+    <!-- DEMO DISCLAIMER BANNER -->
+    <div class="bg-gradient-to-r from-amber-600 via-amber-500 to-amber-600 text-black py-2.5 px-4 text-center font-bold text-xs sm:text-sm shadow-md tracking-wide flex items-center justify-center gap-2 z-50">
+        <i class="fa-solid fa-triangle-exclamation text-base animate-pulse" aria-hidden="true"></i>
+        <span>⚠️ 본 웹페이지는 과학수사 교육 및 진술 분석 AI 이해를 돕기 위한 데모 시뮬레이터입니다. 모든 사건·인물·기록은 가상이며, 실제 수사·재판의 진위 판단에 사용할 수 없습니다. (DEMO ONLY - NOT FOR REAL FORENSIC USE)</span>
+    </div>
+
+    <!-- HEADER -->
+    <header class="border-b border-slate-800 bg-slate-900/80 px-6 py-4 flex flex-wrap items-center justify-between gap-4">
+        <div class="flex items-center gap-3">
+            <div class="p-2.5 bg-rose-600 rounded-lg"><i class="fa-solid fa-file-circle-exclamation text-xl" aria-hidden="true"></i></div>
+            <div>
+                <h1 class="text-lg font-bold">Statement Contradiction Detector <span class="ml-1 rounded bg-rose-500/15 px-1.5 py-0.5 align-middle text-[11px] font-semibold text-rose-300">Cross-Check AI</span></h1>
+                <p class="text-xs text-slate-400">사건발생보고서 · 피의자신문조서 · 참고인/피해자 진술 · 객관 증거를 교차 검증해 모순을 찾고 진술 신빙성을 판정하는 엔진</p>
+            </div>
+        </div>
+        <div class="flex flex-wrap gap-2" role="group" aria-label="시나리오 선택" id="scenarioBtns"></div>
+    </header>
+
+    <main class="flex-1 p-4 sm:p-6 grid grid-cols-1 xl:grid-cols-12 gap-6">
+        <!-- LEFT: CASE, DOCUMENTS, SETTINGS, PIPELINE -->
+        <section class="xl:col-span-4 space-y-6">
+            <div class="card rounded-xl p-5" id="caseCard"></div>
+
+            <div class="card rounded-xl p-5">
+                <div class="flex items-center justify-between border-b border-slate-800 pb-2 mb-3">
+                    <h2 class="font-bold text-sm text-rose-300"><i class="fa-solid fa-folder-open mr-1" aria-hidden="true"></i> 수사 기록 (교차 검증 대상)</h2>
+                    <span class="text-xs text-slate-400" id="pageInfo"></span>
+                </div>
+                <ul class="space-y-2" id="docList"></ul>
+                <p class="mt-3 text-xs text-slate-500">문서를 빼고 다시 판독하면 교차 검증의 효과를 확인할 수 있습니다.</p>
+            </div>
+
+            <div class="card rounded-xl p-5 space-y-4">
+                <h2 class="font-bold text-sm text-rose-300 border-b border-slate-800 pb-2"><i class="fa-solid fa-sliders mr-1" aria-hidden="true"></i> 판독 설정</h2>
+                <div>
+                    <label for="targetSel" class="block text-xs text-slate-400 mb-1">판독 대상 진술</label>
+                    <select id="targetSel" class="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2.5 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-400"></select>
+                </div>
+                <div>
+                    <div class="flex justify-between text-xs text-slate-400 mb-1"><span>비교 시간대 (동선 대조 구간)</span><span id="winLabel" class="font-bold text-rose-300"></span></div>
+                    <label class="sr-only" for="w0">시작 시각</label>
+                    <input type="range" id="w0" min="720" max="1080" step="10" class="w-full">
+                    <label class="sr-only" for="w1">종료 시각</label>
+                    <input type="range" id="w1" min="720" max="1080" step="10" class="w-full">
+                </div>
+                <button id="runBtn" class="w-full min-h-[44px] rounded-md bg-rose-600 font-semibold text-white hover:bg-rose-500 disabled:opacity-50 disabled:cursor-wait focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-300">
+                    <i class="fa-solid fa-wand-magic-sparkles mr-1" aria-hidden="true"></i> AI 교차 판독 실행
+                </button>
+                <p id="staleNote" class="hidden text-xs text-amber-300"><i class="fa-solid fa-rotate mr-1" aria-hidden="true"></i>설정이 바뀌었습니다. 다시 판독하세요.</p>
+            </div>
+
+            <div class="card rounded-xl p-5">
+                <h2 class="font-bold text-sm text-rose-300 border-b border-slate-800 pb-2 mb-3"><i class="fa-solid fa-diagram-project mr-1" aria-hidden="true"></i> AI 분석 파이프라인</h2>
+                <ol class="space-y-2" id="pipeline"></ol>
+            </div>
+        </section>
+
+        <!-- RIGHT: RESULTS -->
+        <section class="xl:col-span-8 space-y-6">
+            <div class="card rounded-xl p-5" id="verdictCard" aria-live="polite"></div>
+
+            <div class="card rounded-xl p-5">
+                <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800 pb-2 mb-4">
+                    <h2 class="font-bold text-sm text-rose-300"><i class="fa-solid fa-route mr-1" aria-hidden="true"></i> 동선 타임라인 대조</h2>
+                    <div class="flex flex-wrap gap-2 text-[11px] text-slate-400" id="locLegend"></div>
+                </div>
+                <div id="timeline"></div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div class="card rounded-xl p-5">
+                    <h2 class="font-bold text-sm text-rose-300 border-b border-slate-800 pb-2 mb-3"><i class="fa-solid fa-triangle-exclamation mr-1" aria-hidden="true"></i> 탐지된 모순 <span id="conflictCount" class="text-slate-400 font-normal"></span></h2>
+                    <ul class="space-y-2 max-h-[460px] overflow-y-auto pr-1" id="conflicts"></ul>
+                </div>
+                <div class="card rounded-xl p-5">
+                    <h2 class="font-bold text-sm text-rose-300 border-b border-slate-800 pb-2 mb-3"><i class="fa-solid fa-user-check mr-1" aria-hidden="true"></i> 진술별 신빙성 점수</h2>
+                    <ul class="space-y-3" id="credList"></ul>
+                </div>
+            </div>
+
+            <div class="card rounded-xl p-5">
+                <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800 pb-2 mb-3">
+                    <h2 class="font-bold text-sm text-rose-300"><i class="fa-solid fa-file-lines mr-1" aria-hidden="true"></i> 기록 원문 뷰어</h2>
+                    <div class="flex gap-3 text-[11px] text-slate-400">
+                        <span><span class="claim claim-conflict">모순</span></span>
+                        <span><span class="claim claim-support">교차 일치</span></span>
+                        <span><span class="claim claim-neutral">추출 개체</span></span>
+                    </div>
+                </div>
+                <div class="flex flex-wrap gap-1.5 mb-3" role="tablist" aria-label="문서 선택" id="docTabs"></div>
+                <div id="docView" class="rounded-lg border border-slate-800 bg-slate-950/60 p-4 text-sm leading-7 max-h-[420px] overflow-y-auto"></div>
+            </div>
+        </section>
+    </main>
+
+    <footer class="border-t border-slate-800 py-3.5 text-center text-xs text-slate-500">
+        <p>수사 기록 진술 모순 탐지 · 신빙성 판독 AI 시뮬레이터 | Educational Forensic Science Web App (DEMO)</p>
+        <p class="mt-1">© Yeonbum Kim · <a href="mailto:yeonbumk@gmail.com" class="underline underline-offset-2 hover:text-slate-300">yeonbumk@gmail.com</a></p>
+    </footer>
+
+    <script>
+    // ───────────────────────── helpers ─────────────────────────
+    const T = s => { const [h, m] = s.split(':').map(Number); return h * 60 + m; };
+    const fmt = n => String(Math.floor(n / 60)).padStart(2, '0') + ':' + String(Math.round(n % 60)).padStart(2, '0');
+    const esc = s => s.replace(/[&<>"]/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
+    const $ = id => document.getElementById(id);
+    // claim: who(subj) · what(attr) · value · when(time "HH:MM" or "HH:MM-HH:MM") · optional numeric value
+    function C(id, doc, subj, attr, val, time, num) {
+        const [a, b = a] = time.split('-');
+        return { id, doc, subj, attr, val, t1: T(a), t2: T(b), num: num ? T(num) : null };
+    }
+    const TOL = 5; // minutes of slack for "~쯤" in human testimony
+
+    const ATTR = {
+        loc: { label: '위치', kind: '동선 충돌' },
+        time: { label: '사건 발생 시각', kind: '사건 시각 불일치' },
+        outfit: { label: '복장', kind: '인상착의 불일치' },
+        ending: { label: '영화 결말', kind: '세부 사실 불일치' },
+        left: { label: '상영 중 이탈', kind: '세부 사실 불일치' },
+    };
+    const DOCTYPE = {
+        police: { label: '경찰 보고서', icon: 'fa-building-shield', cls: 'text-sky-300 bg-sky-500/15' },
+        suspect: { label: '피의자 진술', icon: 'fa-user-secret', cls: 'text-rose-300 bg-rose-500/15' },
+        victim: { label: '피해자 진술', icon: 'fa-user-injured', cls: 'text-violet-300 bg-violet-500/15' },
+        witness: { label: '참고인 진술', icon: 'fa-user', cls: 'text-indigo-300 bg-indigo-500/15' },
+        evidence: { label: '객관 증거', icon: 'fa-database', cls: 'text-emerald-300 bg-emerald-500/15' },
+    };
+
+    // ───────────────────────── scenarios (all fictional) ─────────────────────────
+    const SCENARIOS = {
+        A: {
+            btn: 'A · 100% 일치', btnCls: 'emerald',
+            tag: '시나리오 A · 모든 진술 일치', title: '성수동 가죽공방 절도 사건',
+            date: '2026. 10. 14.(화) 14:40경', place: '서울 성동구 성수동 △△가죽공방', totalPages: 312,
+            summary: '공방 금고에서 현금 약 180만 원과 재단 공구가 사라졌다. 출입 비밀번호를 아는 전 직원 정○○(32)이 용의선상에 올랐고, 그는 사건 시각 강남 피트니스센터에 있었다고 주장한다.',
+            subj: { S: '피의자 정○○', INC: '사건' },
+            locs: { gym: ['강남 ○○피트니스', '#38bdf8'], store: ['○○편의점 역삼점', '#a78bfa'], gangnam: ['강남역', '#fbbf24'], seocho: ['서초역', '#f472b6'], home: ['피의자 자택(서초구)', '#34d399'] },
+            target: 'sus',
+            docs: [
+                { id: 'pol', type: 'police', short: '사건발생보고서', title: '사건발생보고서', author: '성동경찰서 형사과 경위 ○○○', pages: '1–9', rel: 0.9, paras: [
+                    ['p.3', '2026. 10. 14.(화) 15:02경 112 신고 접수. 성동구 성수동 소재 \'△△가죽공방\'에서 현금 약 180만 원과 가죽 재단 공구 일체가 도난되었다는 내용임.'],
+                    ['p.4', '피해자 진술 및 현장 감식 결과 범행 시각은 [[a1|14:40경]]으로 추정되며, 출입문 잠금장치 손상 흔적은 없음. 출입 비밀번호를 아는 전 직원 정○○(32)을 용의선상에 올려 동선 확인 중.'],
+                    ['p.9', '피의자는 사건 당일 강남 소재 피트니스센터에 있었다고 주장하여 출입 기록·카드 결제·교통카드 내역 회신을 요청함.'] ] },
+                { id: 'vic', type: 'victim', short: '피해자 진술', title: '피해자진술조서', author: '피해자 윤○○(공방 대표)', pages: '12–29', rel: 0.8, paras: [
+                    ['p.14', '저는 14시 30분쯤 원단 거래처에 가려고 공방을 비웠고, 15시 조금 전에 돌아와 보니 금고가 열려 있었습니다.'],
+                    ['p.17', '옆 가게 사장님이 [[a2|2시 40분 조금 안 돼서]] 공방 문 닫히는 소리를 들었다고 했습니다.'] ] },
+                { id: 'sus', type: 'suspect', short: '피의자신문조서', title: '피의자신문조서 (1회)', author: '피의자 정○○', pages: '41–58', rel: 0.6, paras: [
+                    ['p.44', '문: 2026. 10. 14. 14시부터 16시까지 어디에 있었나요?<br>답: [[a3|2시 조금 넘어 강남 ○○피트니스에 들어가서 3시 반쯤까지 운동]]했습니다. 김○○ 트레이너에게 PT를 받았습니다.'],
+                    ['p.45', '문: 그 후에는요?<br>답: [[a4|헬스장 나와서 바로 옆 편의점에서 음료를 샀고]], [[a5|강남역에서 지하철을 탔습니다]]. [[a6|집에는 4시 조금 전에 도착]]했습니다.'],
+                    ['p.47', '문: 당시 복장은요?<br>답: [[a7|검정색 트레이닝복]]을 입고 있었습니다. 공방 비밀번호는 퇴사 후 기억나지 않습니다.'] ] },
+                { id: 'wit', type: 'witness', short: '참고인(트레이너)', title: '참고인진술조서', author: '참고인 김○○(트레이너)', pages: '77–83', rel: 0.8, paras: [
+                    ['p.79', '정○○ 회원은 [[a8|14시부터 15시 20분까지 PT를 받았고, 끝난 뒤 스트레칭을 하다가 15시 30분 전에 나갔습니다]].'],
+                    ['p.80', '그날 [[a9|검정색 트레이닝복]] 차림이었고, 운동 중 자리를 비운 적은 없습니다.'] ] },
+                { id: 'gym', type: 'evidence', short: '출입 기록', title: '피트니스 출입 기록', author: '○○피트니스 출입관리 시스템', pages: '102–104', rel: 0.95, paras: [
+                    ['p.103', '회원번호 0417(정○○) 출입 로그: [[a10|입장 14:02:11 / 퇴장 15:28:47]]. 동일 시간대 재출입 기록 없음.'] ] },
+                { id: 'card', type: 'evidence', short: '카드 결제', title: '카드 결제 내역', author: '△△카드사 회신자료', pages: '131–133', rel: 0.95, paras: [
+                    ['p.132', '승인일시 2026-10-14 [[a11|15:34:09 / 가맹점 ○○편의점 역삼점]] / 2,400원 / 본인 명의 체크카드 (IC 결제).'] ] },
+                { id: 'bus', type: 'evidence', short: '교통카드', title: '교통카드 이용 내역', author: '교통카드사 회신자료', pages: '140–141', rel: 0.95, paras: [
+                    ['p.140', '[[a12|15:41 2호선 강남역 승차]] → [[a13|15:52 서초역 하차]] (본인 명의 교통카드).'] ] },
+            ],
+            claims: [
+                C('a1', 'pol', 'INC', 'time', '14:40경', '13:30-16:30', '14:40'),
+                C('a2', 'vic', 'INC', 'time', '14:38경', '13:30-16:30', '14:38'),
+                C('a3', 'sus', 'S', 'loc', 'gym', '14:00-15:30'),
+                C('a4', 'sus', 'S', 'loc', 'store', '15:30-15:40'),
+                C('a5', 'sus', 'S', 'loc', 'gangnam', '15:40-15:45'),
+                C('a6', 'sus', 'S', 'loc', 'home', '15:55-16:00'),
+                C('a7', 'sus', 'S', 'outfit', '검정 트레이닝복', '14:00-15:30'),
+                C('a8', 'wit', 'S', 'loc', 'gym', '14:00-15:25'),
+                C('a9', 'wit', 'S', 'outfit', '검정 트레이닝복', '14:00-15:25'),
+                C('a10', 'gym', 'S', 'loc', 'gym', '14:02-15:28'),
+                C('a11', 'card', 'S', 'loc', 'store', '15:34'),
+                C('a12', 'bus', 'S', 'loc', 'gangnam', '15:41'),
+                C('a13', 'bus', 'S', 'loc', 'seocho', '15:52'),
+            ],
+        },
+        B: {
+            btn: 'B · 정교한 거짓', btnCls: 'amber',
+            tag: '시나리오 B · 정교하게 짜인 거짓 알리바이', title: '망원동 귀금속점 절도 사건',
+            date: '2026. 10. 21.(화) 14:48경', place: '서울 마포구 망원동 ◇◇귀금속', totalPages: 287,
+            summary: '진열장을 깨고 금반지 등 7점(약 2,300만 원)을 훔쳐 달아났다. 단골손님 이○○(29)은 친구와 상암동 영화관에서 영화를 보고 있었다며 예매 내역과 친구 진술을 제시했다.',
+            subj: { S: '피의자 이○○', CAR: '피의자 차량', INC: '사건', FILM: '관람 영화' },
+            locs: { cinema: ['상암 ○○시네마', '#38bdf8'], parking: ['영화관 주차장', '#818cf8'], outside: ['주차장 밖(이동 중)', '#f97316'], mangwon: ['망원동(피해 점포 인근)', '#f43f5e'] },
+            target: 'sus',
+            docs: [
+                { id: 'pol', type: 'police', short: '사건발생보고서', title: '사건발생보고서', author: '마포경찰서 형사과 경사 ○○○', pages: '1–11', rel: 0.9, paras: [
+                    ['p.2', '2026. 10. 21.(화) 14:55경 신고. 마포구 망원동 \'◇◇귀금속\' 진열장 파손 후 금반지 등 7점(시가 약 2,300만 원) 절취.'],
+                    ['p.5', '점포 CCTV 분석 결과 범인은 [[b1|14:48경]] 침입하여 14:53경 이탈. 회색 후드티·검정 모자 착용, 인근 골목에 세워둔 승용차로 도주한 정황.'],
+                    ['p.11', '주변 탐문 결과 피해 점포 단골이었던 이○○(29)을 용의자로 특정. 피의자는 영화 관람 알리바이를 주장함.'] ] },
+                { id: 'sus', type: 'suspect', short: '피의자신문조서', title: '피의자신문조서 (1회)', author: '피의자 이○○', pages: '52–79', rel: 0.6, paras: [
+                    ['p.55', '답: 그날 [[b2|1시 50분쯤 친구 최○○와 상암 ○○시네마에 들어가서, 2시 영화 시작부터 4시 10분 끝날 때까지]] 계속 같이 있었습니다. 예매 내역도 있습니다.'],
+                    ['p.57', '문: 상영 중 자리를 비운 적이 있나요?<br>답: [[b3|한 번도 자리를 뜬 적 없습니다]]. 휴대전화도 계속 제가 갖고 있었습니다.'],
+                    ['p.61', '문: 차량은요?<br>답: [[b4|차는 영화관 주차장에 처음부터 끝까지 세워뒀습니다]].'],
+                    ['p.66', '문: 영화 결말을 말해보세요.<br>답: [[b5|주인공이 기차역에서 헤어졌던 동생과 다시 만나는 장면]]으로 끝납니다. 감동적이었어요.'] ] },
+                { id: 'wit', type: 'witness', short: '참고인(친구)', title: '참고인진술조서', author: '참고인 최○○(동행 친구)', pages: '88–101', rel: 0.8, paras: [
+                    ['p.90', '[[b6|1시 50분쯤 같이 입장]]했습니다. 표는 이○○이 미리 끊어뒀어요.'],
+                    ['p.93', '솔직히 말씀드리면, [[b7|영화 시작하고 20~30분쯤 지나서 이○○이 \'배가 아프다\'며 나갔고 한 시간 가까이 안 들어왔습니다]]. [[b8|3시 반 넘어서 돌아와]] 끝까지 같이 봤습니다.'],
+                    ['p.95', '결말은 [[b9|주인공이 공항에서 혼자 출국하는 장면]]이었어요. 이○○이 처음 조사 전에 \'계속 같이 있었다고 해달라\'고 부탁했습니다.'] ] },
+                { id: 'tix', type: 'evidence', short: '발권·입장 기록', title: '영화관 발권·입장 기록', author: '○○시네마 회신자료', pages: '150–151', rel: 0.95, paras: [
+                    ['p.150', '예매번호 7731-0428 / 상영 14:00 6관 F7·F8 / [[b10|입장 QR 스캔 13:56]]. 상영관 재입장은 QR 기록이 남지 않음.'] ] },
+                { id: 'park', type: 'evidence', short: '주차 출입 기록', title: '영화관 주차장 출입 기록', author: '주차관제 시스템', pages: '163–165', rel: 0.95, paras: [
+                    ['p.163', '차량 12가 3456(이○○ 명의): [[b11|입차 13:44]] → [[b12|출차 14:31 · 재입차 15:27]] → [[b13|최종 출차 16:21]].'] ] },
+                { id: 'cell', type: 'evidence', short: '기지국 위치', title: '휴대전화 기지국 접속 기록', author: '이동통신사 회신자료', pages: '188–204', rel: 0.9, paras: [
+                    ['p.190', '이○○ 명의 휴대전화 접속 기지국: [[b14|13:40~14:29 상암동 기지국(영화관 반경 300m)]], [[b15|14:38~15:16 망원동 기지국(피해 점포 반경 400m)]], [[b16|15:31~16:12 상암동 기지국]].'],
+                    ['p.192', '해당 시간대 통화 2건, 데이터 통신 지속 — 단말기 비활성(꺼짐) 상태 아님.'] ] },
+                { id: 'film', type: 'evidence', short: '배급사 회신', title: '상영본 정보 회신', author: '배급사 회신자료', pages: '211', rel: 0.95, paras: [
+                    ['p.211', '해당 회차 상영본은 극장판 단일 버전이며, [[b17|결말은 주인공이 공항에서 홀로 출국하는 장면]]. \'기차역 재회\' 장면은 예고편에만 쓰인 미공개 컷임.'] ] },
+            ],
+            claims: [
+                C('b1', 'pol', 'INC', 'time', '14:48경', '13:30-16:30', '14:48'),
+                C('b2', 'sus', 'S', 'loc', 'cinema', '13:50-16:10'),
+                C('b3', 'sus', 'S', 'left', '이탈 없음', '14:00-16:10'),
+                C('b4', 'sus', 'CAR', 'loc', 'parking', '13:45-16:15'),
+                C('b5', 'sus', 'FILM', 'ending', '기차역에서 동생과 재회', '14:00-16:10'),
+                C('b6', 'wit', 'S', 'loc', 'cinema', '13:50-14:25'),
+                C('b7', 'wit', 'S', 'left', '약 1시간 이탈', '14:00-16:10'),
+                C('b8', 'wit', 'S', 'loc', 'cinema', '15:30-16:10'),
+                C('b9', 'wit', 'FILM', 'ending', '공항에서 홀로 출국', '14:00-16:10'),
+                C('b10', 'tix', 'S', 'loc', 'cinema', '13:56'),
+                C('b11', 'park', 'CAR', 'loc', 'parking', '13:44-14:31'),
+                C('b12', 'park', 'CAR', 'loc', 'outside', '14:31-15:27'),
+                C('b13', 'park', 'CAR', 'loc', 'parking', '15:27-16:21'),
+                C('b14', 'cell', 'S', 'loc', 'cinema', '13:40-14:29'),
+                C('b15', 'cell', 'S', 'loc', 'mangwon', '14:38-15:16'),
+                C('b16', 'cell', 'S', 'loc', 'cinema', '15:31-16:12'),
+                C('b17', 'film', 'FILM', 'ending', '공항에서 홀로 출국', '13:30-16:30'),
+            ],
+        },
+        C: {
+            btn: 'C · 엉망진창', btnCls: 'rose',
+            tag: '시나리오 C · 진술이 뒤엉킨 사건', title: '연남동 상가 앞 폭행 사건',
+            date: '2026. 11. 2.(월) 시각 불명확', place: '서울 서대문구 연남동 ○○상가 앞', totalPages: 341,
+            summary: '상가 앞에서 남성이 행인을 폭행하고 달아났다. 용의자 한○○(35)은 1회 조사와 2회 조사에서 진술을 바꿨고, 목격자마다 사건 시각과 인상착의가 다르며, CCTV와 카드 기록도 신뢰도에 문제가 있다.',
+            subj: { S: '피의자 한○○', INC: '사건' },
+            locs: { home: ['피의자 자택(은평구)', '#34d399'], cafe: ['연남동 ○○카페', '#38bdf8'], scene: ['연남동 ○○상가 앞(현장)', '#f43f5e'] },
+            target: 'sus2',
+            docs: [
+                { id: 'pol', type: 'police', short: '사건발생보고서', title: '사건발생보고서', author: '서대문경찰서 형사과 경위 ○○○', pages: '1–14', rel: 0.9, paras: [
+                    ['p.4', '2026. 11. 2.(월) 14:22 112 신고 — 연남동 ○○상가 앞에서 남성 1명이 행인을 폭행 후 도주. [[c1|신고자 진술상 범행 시각 14:15경]].'],
+                    ['p.7', '피해자 오○○(41) 안면부 타박상. 인근 거주 한○○(35)을 용의자로 특정하였으나 목격자별 인상착의 진술이 상이하고, 현장 CCTV 녹화기 시각 오류가 확인됨.'] ] },
+                { id: 'vic', type: 'victim', short: '피해자 진술', title: '피해자진술조서', author: '피해자 오○○', pages: '15–30', rel: 0.75, paras: [
+                    ['p.16', '[[c2|3시쯤]] 상가 앞에서 담배를 피우고 있는데 [[c3|그 남자가 다가와 시비를 걸고 주먹을 휘둘렀습니다]].'],
+                    ['p.18', '남자는 [[c4|검정색 점퍼]]를 입고 있었습니다. 얼굴은 한○○이 확실합니다.'] ] },
+                { id: 'sus1', type: 'suspect', short: '피의자 1회', title: '피의자신문조서 (1회)', author: '피의자 한○○', pages: '31–47', rel: 0.6, paras: [
+                    ['p.33', '답: [[c5|그날 오후에는 내내 집에 있었습니다]]. 연남동에는 가지 않았습니다.'],
+                    ['p.40', '문: 집에 있었다는 걸 증명할 사람이 있나요?<br>답: 혼자 살아서 없습니다.'] ] },
+                { id: 'sus2', type: 'suspect', short: '피의자 2회(번복)', title: '피의자신문조서 (2회)', author: '피의자 한○○', pages: '48–66', rel: 0.6, paras: [
+                    ['p.50', '답: 지난번엔 겁이 나서 거짓말했습니다. [[c6|2시부터 3시까지 연남동 카페에서 친구를 만났고]], [[c7|3시 40분쯤 버스 타고 집에 왔습니다]].'],
+                    ['p.52', '문: 당시 복장은요?<br>답: [[c8|회색 코트]]였습니다. 카드는 친구에게 빌려줘서 친구가 계산했을 수도 있습니다.'],
+                    ['p.58', '문: 그 친구 연락처는요?<br>답: 지금은 연락이 안 됩니다.'] ] },
+                { id: 'witA', type: 'witness', short: '참고인 A(상인)', title: '참고인진술조서', author: '참고인 A(상가 상인)', pages: '70–78', rel: 0.7, paras: [
+                    ['p.72', '제가 가게 문 앞을 쓸고 있을 때니까 [[c9|2시 10분쯤]]이었어요. [[c10|저 사람(한○○)이 상가 앞에서 소리를 지르며 사람을 때렸어요]].'],
+                    ['p.74', '[[c11|빨간 점퍼]]를 입고 있었습니다.'] ] },
+                { id: 'witB', type: 'witness', short: '참고인 B(행인)', title: '참고인진술조서', author: '참고인 B(행인)', pages: '79–85', rel: 0.6, paras: [
+                    ['p.81', '버스를 기다리다 봤는데 [[c12|2시 40분 전후]]였던 것 같아요. [[c13|한○○으로 보이는 남자가 상가 앞에서 싸우고 있었어요]].'],
+                    ['p.83', '[[c14|파란 점퍼]]였던 것 같은데, 멀어서 확실하진 않아요.'] ] },
+                { id: 'cctv', type: 'evidence', short: '상가 CCTV', title: '상가 외벽 CCTV 분석', author: '과학수사팀 영상분석', pages: '120–126', rel: 0.4, paras: [
+                    ['p.121', '상가 외벽 CCTV: [[c15|화면 시각 14:13~14:16 남성 1명 상가 앞 출현]], [[c16|빨간 계열 상의]].'],
+                    ['p.124', '※ 녹화기 시각이 표준시와 동기화되지 않아 실제 시각과 ±15분 오차 가능. 화질 저하로 인물 동일성 판단 불가.'] ] },
+                { id: 'card', type: 'evidence', short: '카드 결제', title: '카드 결제 내역', author: '△△카드사 회신자료', pages: '140–142', rel: 0.55, paras: [
+                    ['p.141', '한○○ 명의 신용카드 [[c17|14:47 연남동 ○○카페 6,500원]] 승인. 서명·매장 CCTV 미확보로 실사용자 미확인.'] ] },
+            ],
+            claims: [
+                C('c1', 'pol', 'INC', 'time', '14:15경', '13:30-16:30', '14:15'),
+                C('c2', 'vic', 'INC', 'time', '15:00경', '13:30-16:30', '15:00'),
+                C('c3', 'vic', 'S', 'loc', 'scene', '14:50-15:05'),
+                C('c4', 'vic', 'S', 'outfit', '검정 점퍼', '13:30-16:30'),
+                C('c5', 'sus1', 'S', 'loc', 'home', '13:30-16:30'),
+                C('c6', 'sus2', 'S', 'loc', 'cafe', '14:00-15:00'),
+                C('c7', 'sus2', 'S', 'loc', 'home', '15:40-16:30'),
+                C('c8', 'sus2', 'S', 'outfit', '회색 코트', '13:30-16:30'),
+                C('c9', 'witA', 'INC', 'time', '14:10경', '13:30-16:30', '14:10'),
+                C('c10', 'witA', 'S', 'loc', 'scene', '14:05-14:15'),
+                C('c11', 'witA', 'S', 'outfit', '빨간 점퍼', '13:30-16:30'),
+                C('c12', 'witB', 'INC', 'time', '14:40경', '13:30-16:30', '14:40'),
+                C('c13', 'witB', 'S', 'loc', 'scene', '14:35-14:45'),
+                C('c14', 'witB', 'S', 'outfit', '파란 점퍼', '13:30-16:30'),
+                C('c15', 'cctv', 'S', 'loc', 'scene', '14:13-14:16'),
+                C('c16', 'cctv', 'S', 'outfit', '빨간 점퍼', '13:30-16:30'),
+                C('c17', 'card', 'S', 'loc', 'cafe', '14:47'),
+            ],
+        },
+    };
+
+    // ───────────────────────── cross-check engine ─────────────────────────
+    function analyze(sc, active, w0, w1, target) {
+        const D = Object.fromEntries(sc.docs.map(d => [d.id, d]));
+        const isEv = id => D[id].type === 'evidence';
+        const claims = sc.claims.filter(c => active.has(c.doc) && c.t2 >= w0 && c.t1 <= w1);
+        // testimony times are approximate: compare only the core of the interval
+        const core = c => {
+            if (isEv(c.doc)) return [c.t1, c.t2];
+            const L = c.t2 - c.t1, mid = (c.t1 + c.t2) / 2;
+            return L > 2 * TOL ? [c.t1 + TOL, c.t2 - TOL] : [mid, mid];
+        };
+        const ov = (a, b) => Math.max(a[0], b[0]) <= Math.min(a[1], b[1]);
+
+        const pairs = [];
+        let checked = 0;
+        for (let i = 0; i < claims.length; i++) for (let j = i + 1; j < claims.length; j++) {
+            const a = claims[i], b = claims[j];
+            if (a.doc === b.doc || a.subj !== b.subj || a.attr !== b.attr) continue;
+            checked++;
+            const sameAuthor = D[a.doc].author === D[b.doc].author;
+            let rel = null;
+            if (a.attr === 'loc') {
+                if (a.val === b.val) { if (ov([a.t1, a.t2], [b.t1, b.t2])) rel = 'support'; }
+                else if (ov(core(a), core(b))) rel = 'conflict';
+            } else if (ov(core(a), core(b))) {
+                const same = a.num != null && b.num != null ? Math.abs(a.num - b.num) <= 10 : a.val === b.val;
+                rel = same ? 'support' : 'conflict';
+            }
+            if (!rel || (rel === 'support' && sameAuthor)) continue;
+            const ev = [a, b].find(c => isEv(c.doc));
+            let sev = 'major', kind = ATTR[a.attr].kind;
+            if (rel === 'conflict') {
+                if (sameAuthor) kind = '진술 번복';
+                else if (ev) sev = D[ev.doc].rel >= 0.8 ? 'critical' : 'minor';
+            }
+            pairs.push({ a, b, rel, sev, kind, revision: rel === 'conflict' && sameAuthor });
+        }
+
+        // credibility: iterate so that contradicting an unreliable source costs less
+        const stmt = sc.docs.filter(d => active.has(d.id) && !isEv(d.id)).map(d => d.id);
+        let cred = Object.fromEntries(stmt.map(id => [id, D[id].rel * 100]));
+        for (let k = 0; k < 5; k++) {
+            const next = {};
+            for (const id of stmt) {
+                let s = 70;
+                for (const p of pairs) {
+                    const mine = p.a.doc === id ? p.a : p.b.doc === id ? p.b : null;
+                    if (!mine) continue;
+                    const o = (mine === p.a ? p.b : p.a).doc;
+                    const w = isEv(o) ? D[o].rel : cred[o] / 100;
+                    if (p.rel === 'conflict') s -= p.revision ? 20 : (isEv(o) ? 30 : 15) * w;
+                    else s += (isEv(o) ? 10 : 5) * w;
+                }
+                next[id] = Math.max(0, Math.min(100, Math.round(s)));
+            }
+            cred = next;
+        }
+
+        const tp = pairs.filter(p => p.a.doc === target || p.b.doc === target);
+        const other = p => (p.a.doc === target ? p.b : p.a);
+        const hard = tp.filter(p => p.rel === 'conflict' && isEv(other(p).doc) && D[other(p).doc].rel >= 0.8);
+        const objSup = tp.filter(p => p.rel === 'support' && isEv(other(p).doc) && D[other(p).doc].rel >= 0.8);
+        const conf = tp.filter(p => p.rel === 'conflict');
+        const score = cred[target] ?? 0;
+        const code = hard.length ? 'FALSE' : (score >= 75 && objSup.length ? 'TRUE' : 'UNSURE');
+
+        const reasons = [];
+        if (code === 'FALSE') {
+            reasons.push(`신뢰도 높은 객관 증거와 정면으로 충돌하는 진술 ${hard.length}건`);
+            hard.slice(0, 3).forEach(p => reasons.push(`${D[other(p).doc].short}: ${describe(sc, other(p))} ↔ 진술: ${describe(sc, p.a.doc === target ? p.a : p.b)}`));
+            if (objSup.length) reasons.push(`일부(${objSup.length}건)는 증거와 일치 — 사실을 섞어 짠 알리바이일 가능성`);
+        } else if (code === 'TRUE') {
+            reasons.push(`객관 증거 ${objSup.length}건이 진술 내용을 뒷받침`);
+            reasons.push(conf.length ? `불일치 ${conf.length}건은 신빙성 낮은 진술과의 충돌로 판단에 미치는 영향이 작음` : '다른 기록과의 모순 0건');
+        } else {
+            if (score < 40) reasons.push(`진술 신빙성 ${score}점 — 매우 낮음`);
+            const rev = conf.filter(p => p.revision).length;
+            if (rev) reasons.push(`동일인 진술 번복 ${rev}건`);
+            const tt = conf.filter(p => !p.revision && !isEv(other(p).doc)).length;
+            if (tt) reasons.push(`다른 진술과의 불일치 ${tt}건`);
+            const weak = conf.filter(p => isEv(other(p).doc)).map(p => D[other(p).doc].short);
+            if (weak.length) reasons.push(`충돌하는 증거(${[...new Set(weak)].join(', ')})의 신뢰도가 낮아 결정적 판단 불가`);
+            if (!objSup.length) reasons.push('신뢰도 높은 객관 증거로 직접 검증되는 내용이 부족');
+            reasons.push('→ 추가 수사(통신·CCTV 원본 시각 보정·참고인 재조사) 필요');
+        }
+        return { pairs, cred, code, score, reasons, checked, claims };
+    }
+
+    function describe(sc, c) {
+        if (c.attr === 'loc') return `${fmt(c.t1)}${c.t1 !== c.t2 ? '~' + fmt(c.t2) : ''} ${sc.locs[c.val][0]}`;
+        return `${ATTR[c.attr].label} "${c.val}"`;
+    }
+
+    // ───────────────────────── UI state & rendering ─────────────────────────
+    const RM = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const STEPS = ['문서 수집 · OCR', '개체·시간 표현 추출 (NER)', '동선 타임라인 정렬', '교차 검증 (모순 탐지)', '신빙성 점수 반복 산정', '최종 판정'];
+    const VERDICT = {
+        TRUE: { label: '사실 — 진술 신빙성 높음', icon: 'fa-circle-check', cls: 'border-emerald-500/50 bg-emerald-500/10 text-emerald-300', bar: 'bg-emerald-500' },
+        FALSE: { label: '거짓 가능성 높음', icon: 'fa-circle-xmark', cls: 'border-rose-500/50 bg-rose-500/10 text-rose-300', bar: 'bg-rose-500' },
+        UNSURE: { label: '판단 보류 — 추가 수사 필요', icon: 'fa-circle-question', cls: 'border-amber-500/50 bg-amber-500/10 text-amber-300', bar: 'bg-amber-500' },
+    };
+    const SEV = {
+        critical: ['결정적', 'bg-rose-600 text-white'],
+        major: ['중대', 'bg-amber-500 text-black'],
+        minor: ['약함', 'bg-slate-600 text-slate-100'],
+    };
+    const state = { sid: 'A', active: new Set(), w0: T('13:30'), w1: T('16:30'), target: null, result: null, doc: null };
+    const sc = () => SCENARIOS[state.sid];
+    const docById = id => sc().docs.find(d => d.id === id);
+    const pageCount = p => { const [a, b = a] = p.split('–').map(Number); return b - a + 1; };
+
+    function renderScenarioBtns() {
+        $('scenarioBtns').innerHTML = Object.entries(SCENARIOS).map(([k, s]) => {
+            const on = k === state.sid;
+            return `<button data-sid="${k}" aria-pressed="${on}" class="min-h-[40px] px-3 text-xs font-semibold rounded border transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-${s.btnCls}-300 ${on ? `bg-${s.btnCls}-500 text-black border-${s.btnCls}-400` : `bg-${s.btnCls}-500/10 text-${s.btnCls}-300 border-${s.btnCls}-500/40 hover:bg-${s.btnCls}-500/20`}">${s.btn}</button>`;
+        }).join('');
+    }
+
+    function loadScenario(sid) {
+        state.sid = sid;
+        state.active = new Set(sc().docs.map(d => d.id));
+        state.target = sc().target;
+        state.doc = state.target;
+        state.result = null;
+        renderScenarioBtns();
+        renderCase();
+        renderDocList();
+        renderSettings();
+        renderPipeline(-1);
+        renderResults();
+    }
+
+    function renderCase() {
+        const s = sc();
+        $('caseCard').innerHTML = `
+            <p class="text-xs font-semibold text-rose-300 mb-1">${s.tag}</p>
+            <h2 class="text-lg font-bold">${s.title}</h2>
+            <dl class="mt-3 grid grid-cols-[4.5rem_1fr] gap-y-1 text-xs">
+                <dt class="text-slate-500">발생</dt><dd>${s.date}</dd>
+                <dt class="text-slate-500">장소</dt><dd>${s.place}</dd>
+                <dt class="text-slate-500">기록</dt><dd>전체 ${s.totalPages}쪽 · 문서 ${s.docs.length}건</dd>
+            </dl>
+            <p class="mt-3 text-sm text-slate-300 leading-relaxed">${s.summary}</p>`;
+    }
+
+    function renderDocList() {
+        const s = sc();
+        const used = s.docs.filter(d => state.active.has(d.id)).reduce((n, d) => n + pageCount(d.pages), 0);
+        $('pageInfo').textContent = `발췌 ${used}쪽 / 전체 ${s.totalPages}쪽`;
+        $('docList').innerHTML = s.docs.map(d => {
+            const t = DOCTYPE[d.type];
+            return `<li><label class="flex cursor-pointer items-start gap-3 rounded-lg border border-slate-800 bg-slate-950/50 p-2.5 hover:border-slate-600">
+                <input type="checkbox" data-doc="${d.id}" ${state.active.has(d.id) ? 'checked' : ''} class="mt-1 h-4 w-4 accent-rose-500">
+                <span class="flex-1 min-w-0">
+                    <span class="flex flex-wrap items-center gap-1.5">
+                        <span class="rounded px-1.5 py-0.5 text-[11px] font-semibold ${t.cls}"><i class="fa-solid ${t.icon} mr-1" aria-hidden="true"></i>${t.label}</span>
+                        <span class="text-sm font-semibold">${d.title}</span>
+                    </span>
+                    <span class="mt-0.5 block text-xs text-slate-400">${d.author} · p.${d.pages} · 기초 신뢰도 ${Math.round(d.rel * 100)}</span>
+                </span></label></li>`;
+        }).join('');
+    }
+
+    function renderSettings() {
+        const opts = sc().docs.filter(d => d.type !== 'evidence' && d.type !== 'police' && state.active.has(d.id));
+        if (!opts.some(d => d.id === state.target)) state.target = opts[0]?.id ?? null;
+        $('targetSel').innerHTML = opts.length
+            ? opts.map(d => `<option value="${d.id}" ${d.id === state.target ? 'selected' : ''}>${d.title} — ${d.author}</option>`).join('')
+            : '<option>선택 가능한 진술 없음</option>';
+        $('targetSel').disabled = !opts.length;
+        $('runBtn').disabled = !opts.length;
+        $('w0').value = state.w0; $('w1').value = state.w1;
+        $('winLabel').textContent = `${fmt(state.w0)} ~ ${fmt(state.w1)}`;
+    }
+
+    function renderPipeline(step, logs = []) {
+        $('pipeline').innerHTML = STEPS.map((name, i) => {
+            const done = i < step || step === STEPS.length, cur = i === step;
+            const icon = done ? 'fa-circle-check text-emerald-400' : cur ? 'fa-spinner fa-spin text-rose-300' : 'fa-circle text-slate-700';
+            return `<li class="flex gap-2.5 text-sm ${done || cur ? 'text-slate-200' : 'text-slate-500'}">
+                <i class="fa-solid ${icon} mt-1 w-4 text-center" aria-hidden="true"></i>
+                <span><span class="font-semibold">${i + 1}. ${name}</span>${logs[i] ? `<span class="block text-xs text-slate-400">${logs[i]}</span>` : ''}</span></li>`;
+        }).join('');
+    }
+
+    function markStale() {
+        if (state.result) { state.result = null; renderResults(); $('staleNote').classList.remove('hidden'); renderPipeline(-1); }
+    }
+
+    function renderResults() {
+        const r = state.result, s = sc();
+        // verdict
+        if (!r) {
+            $('verdictCard').innerHTML = `<div class="flex items-center gap-4 text-slate-400">
+                <i class="fa-solid fa-scale-unbalanced-flip text-3xl text-slate-600" aria-hidden="true"></i>
+                <div><p class="font-semibold text-slate-200">판독 대기 중</p><p class="text-sm">판독 대상 진술과 비교 시간대를 정한 뒤 <b class="text-rose-300">AI 교차 판독 실행</b>을 누르세요.</p></div></div>`;
+        } else {
+            const v = VERDICT[r.code], d = docById(state.target);
+            $('verdictCard').innerHTML = `
+                <div class="flex flex-wrap items-start justify-between gap-4">
+                    <div>
+                        <p class="text-xs text-slate-400">판독 대상 · ${d.title} (${d.author}) · ${fmt(state.w0)}~${fmt(state.w1)}</p>
+                        <p class="mt-2 inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-xl font-bold ${v.cls}"><i class="fa-solid ${v.icon}" aria-hidden="true"></i>${v.label}</p>
+                    </div>
+                    <div class="min-w-[180px]">
+                        <div class="flex justify-between text-xs text-slate-400"><span>진술 신빙성</span><span class="text-lg font-bold text-slate-100">${r.score}<span class="text-xs text-slate-400"> / 100</span></span></div>
+                        <div class="mt-1 h-2.5 rounded-full bg-slate-800" role="meter" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${r.score}" aria-label="진술 신빙성 점수"><div class="h-full rounded-full ${v.bar}" style="width:${r.score}%"></div></div>
+                    </div>
+                </div>
+                <ul class="mt-4 space-y-1.5 text-sm text-slate-300">${r.reasons.map(x => `<li class="flex gap-2"><span class="text-rose-400" aria-hidden="true">—</span><span>${esc(x)}</span></li>`).join('')}</ul>
+                <p class="mt-3 text-[11px] text-slate-500">※ 규칙 기반 교차 검증으로 AI 판독 과정을 단순화한 교육용 데모입니다. 실제 진술의 진위는 수사·재판 절차를 통해서만 판단됩니다.</p>`;
+        }
+        renderTimeline();
+        // conflicts
+        const conflicts = r ? r.pairs.filter(p => p.rel === 'conflict') : [];
+        const order = { critical: 0, major: 1, minor: 2 };
+        conflicts.sort((x, y) => order[x.sev] - order[y.sev]);
+        const sup = r ? r.pairs.filter(p => p.rel === 'support').length : 0;
+        $('conflictCount').textContent = r ? `${conflicts.length}건 · 교차 일치 ${sup}건 (검사 ${r.checked}쌍)` : '';
+        $('conflicts').innerHTML = !r ? '<li class="text-sm text-slate-500">판독 후 표시됩니다.</li>'
+            : !conflicts.length ? '<li class="rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-3 text-sm text-emerald-300"><i class="fa-solid fa-circle-check mr-1" aria-hidden="true"></i>모든 기록이 서로 일치합니다. 모순이 발견되지 않았습니다.</li>'
+            : conflicts.map(p => {
+                const [sl, scls] = SEV[p.sev];
+                const side = c => { const d = docById(c.doc); return `<button data-open="${c.doc}" data-claim="${c.id}" class="block w-full rounded border border-slate-800 bg-slate-950/60 px-2 py-1.5 text-left text-xs hover:border-rose-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-400"><span class="${DOCTYPE[d.type].cls} rounded px-1 py-px text-[10px] font-semibold">${d.short}</span> <span class="text-slate-400">${p.a.doc === c.doc ? '' : ''}${esc(describe(s, c))}</span></button>`; };
+                return `<li class="rounded-lg border border-slate-800 p-2.5">
+                    <div class="mb-1.5 flex items-center gap-2 text-xs"><span class="rounded px-1.5 py-0.5 font-bold ${scls}">${sl}</span><span class="font-semibold text-slate-200">${p.kind}</span><span class="text-slate-500">· ${s.subj[p.a.subj]}</span></div>
+                    <div class="grid gap-1">${side(p.a)}<span class="text-center text-[10px] text-rose-400" aria-hidden="true">↕ 불일치</span>${side(p.b)}</div></li>`;
+            }).join('');
+        // credibility
+        $('credList').innerHTML = !r ? '<li class="text-sm text-slate-500">판독 후 표시됩니다.</li>'
+            : Object.entries(r.cred).sort((x, y) => y[1] - x[1]).map(([id, v]) => {
+                const d = docById(id), col = v >= 75 ? 'bg-emerald-500' : v >= 40 ? 'bg-amber-500' : 'bg-rose-500';
+                return `<li><div class="flex justify-between text-xs"><span class="${id === state.target ? 'font-bold text-rose-200' : 'text-slate-300'}">${id === state.target ? '▶ ' : ''}${d.title} · ${d.author}</span><span class="font-bold">${v}</span></div>
+                    <div class="mt-1 h-2 rounded-full bg-slate-800"><div class="h-full rounded-full ${col}" style="width:${v}%"></div></div></li>`;
+            }).join('') + (r ? '<li class="pt-1 text-[11px] text-slate-500">객관 증거는 기초 신뢰도로 고정, 진술은 다른 기록과의 일치·충돌을 반영해 5회 반복 산정합니다.</li>' : '');
+        renderDocTabs();
+    }
+
+    function renderTimeline() {
+        const r = state.result, s = sc(), span = state.w1 - state.w0;
+        $('locLegend').innerHTML = Object.values(s.locs).map(([n, c]) => `<span class="inline-flex items-center gap-1"><span class="h-2.5 w-2.5 rounded-sm" style="background:${c}"></span>${n}</span>`).join('');
+        if (!r) { $('timeline').innerHTML = '<p class="text-sm text-slate-500">판독 후 문서별 동선이 시간축에 정렬됩니다.</p>'; return; }
+        const bad = new Set(r.pairs.filter(p => p.rel === 'conflict' && p.a.attr === 'loc').flatMap(p => [p.a.id, p.b.id]));
+        const lanes = [];
+        for (const subj of ['S', 'CAR']) for (const d of s.docs) {
+            const cs = r.claims.filter(c => c.doc === d.id && c.subj === subj && c.attr === 'loc');
+            if (cs.length) lanes.push({ d, subj, cs });
+        }
+        const pct = t => ((Math.min(Math.max(t, state.w0), state.w1) - state.w0) / span) * 100;
+        const ticks = [];
+        for (let t = Math.ceil(state.w0 / 30) * 30; t <= state.w1; t += 30) ticks.push(t);
+        const inc = r.claims.find(c => c.attr === 'time' && docById(c.doc).type === 'police');
+        const marker = inc && inc.num >= state.w0 && inc.num <= state.w1
+            ? `<div class="absolute top-0 bottom-0 border-l-2 border-dashed border-rose-400" style="left:${pct(inc.num)}%"></div>` : '';
+        const markerLabel = marker ? `<span class="absolute -top-5 -translate-x-1/2 whitespace-nowrap rounded bg-rose-600 px-1.5 text-[10px] font-bold text-white" style="left:${pct(inc.num)}%">사건 ${fmt(inc.num)}</span>` : '';
+        $('timeline').innerHTML = `
+            <div class="overflow-x-auto"><div class="min-w-[640px]">
+                <div class="grid grid-cols-[150px_1fr] gap-2 pt-5">
+                    <div></div>
+                    <div class="relative h-4 text-[10px] text-slate-500">${ticks.map(t => `<span class="absolute -translate-x-1/2" style="left:${pct(t)}%">${fmt(t)}</span>`).join('')}${markerLabel}</div>
+                    ${lanes.map(({ d, subj, cs }) => `
+                        <div class="truncate py-1 text-xs"><span class="${DOCTYPE[d.type].cls} rounded px-1 py-px text-[10px] font-semibold">${d.short}</span>${subj === 'CAR' ? ' <span class="text-slate-400">차량</span>' : ''}</div>
+                        <div class="relative h-8 rounded bg-slate-950/70 border border-slate-800">
+                            ${ticks.map(t => `<div class="absolute top-0 bottom-0 border-l border-slate-800" style="left:${pct(t)}%"></div>`).join('')}
+                            ${cs.map(c => { const l = pct(c.t1), w = Math.max(pct(c.t2) - l, 1.2), col = s.locs[c.val][1];
+                                return `<button data-open="${c.doc}" data-claim="${c.id}" title="${esc(describe(s, c))}" class="absolute top-1 bottom-1 rounded text-[10px] font-semibold text-black overflow-hidden whitespace-nowrap px-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-white ${bad.has(c.id) ? 'ring-2 ring-rose-500 ring-offset-1 ring-offset-slate-950' : ''}" style="left:${l}%;width:${w}%;background:${col}">${w > 8 ? esc(s.locs[c.val][0]) : ''}</button>`; }).join('')}
+                            ${marker}
+                        </div>`).join('')}
+                </div>
+                <p class="mt-3 text-[11px] text-slate-500"><span class="inline-block h-2.5 w-4 rounded-sm ring-2 ring-rose-500 align-middle"></span> 같은 시각 다른 장소로 기록된 구간(동선 충돌). 막대를 누르면 해당 원문으로 이동합니다.</p>
+            </div></div>`;
+    }
+
+    function claimStatus() {
+        const st = {};
+        if (!state.result) return st;
+        for (const p of state.result.pairs) for (const c of [p.a, p.b]) {
+            if (p.rel === 'conflict') st[c.id] = 'conflict';
+            else if (!st[c.id]) st[c.id] = 'support';
+        }
+        return st;
+    }
+
+    function renderDocTabs(flashId) {
+        const docs = sc().docs.filter(d => state.active.has(d.id));
+        if (!docs.some(d => d.id === state.doc)) state.doc = docs[0]?.id;
+        $('docTabs').innerHTML = docs.map(d => `<button role="tab" aria-selected="${d.id === state.doc}" data-tab="${d.id}" class="min-h-[36px] rounded-md border px-2.5 text-xs font-semibold focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-400 ${d.id === state.doc ? 'border-rose-500 bg-rose-500/15 text-rose-200' : 'border-slate-700 text-slate-400 hover:text-slate-200'}">${d.short}</button>`).join('');
+        const d = docById(state.doc);
+        if (!d) { $('docView').innerHTML = '<p class="text-slate-500">선택된 문서가 없습니다.</p>'; return; }
+        const st = claimStatus();
+        $('docView').innerHTML = `
+            <div class="mb-3 flex flex-wrap items-center gap-2 border-b border-slate-800 pb-2 text-xs text-slate-400">
+                <span class="${DOCTYPE[d.type].cls} rounded px-1.5 py-0.5 font-semibold">${DOCTYPE[d.type].label}</span>
+                <span class="font-semibold text-slate-200">${d.title}</span><span>· ${d.author}</span><span>· 기록 p.${d.pages}</span>
+            </div>
+            ${d.paras.map(([pg, txt]) => `<p class="mb-3"><span class="mr-2 rounded bg-slate-800 px-1.5 py-0.5 font-mono text-[11px] text-slate-400">${pg}</span>${
+                esc(txt).replace(/&lt;br&gt;/g, '<br>').replace(/\[\[(\w+)\|(.+?)\]\]/g, (_, id, t) => `<span id="cl-${id}" class="claim claim-${st[id] || 'neutral'}" title="${st[id] === 'conflict' ? '다른 기록과 모순' : st[id] === 'support' ? '다른 기록과 교차 일치' : '추출된 개체'}">${t}</span>`)
+            }</p>`).join('')}`;
+        if (flashId) {
+            const el = document.getElementById('cl-' + flashId);
+            if (el) { el.classList.add('flash'); el.scrollIntoView({ block: 'center', behavior: RM ? 'auto' : 'smooth' }); setTimeout(() => el.classList.remove('flash'), 1600); }
+        }
+    }
+
+    async function run() {
+        const s = sc();
+        $('runBtn').disabled = true;
+        $('staleNote').classList.add('hidden');
+        const r = analyze(s, state.active, state.w0, state.w1, state.target);
+        const docs = s.docs.filter(d => state.active.has(d.id));
+        const lanes = new Set(r.claims.filter(c => c.attr === 'loc').map(c => c.doc + c.subj)).size;
+        const nConf = r.pairs.filter(p => p.rel === 'conflict').length;
+        const logs = [
+            `문서 ${docs.length}건 · 발췌 ${docs.reduce((n, d) => n + pageCount(d.pages), 0)}쪽 (전체 ${s.totalPages}쪽) 판독`,
+            `인물·장소·시각·인상착의 개체 ${r.claims.length}개 추출`,
+            `${fmt(state.w0)}~${fmt(state.w1)} 동선 ${lanes}개 레인 정렬`,
+            `${r.checked}쌍 대조 → 모순 ${nConf}건 · 일치 ${r.pairs.length - nConf}건`,
+            `진술 ${Object.keys(r.cred).length}건 신빙성 5회 반복 산정`,
+            `판정: ${VERDICT[r.code].label}`,
+        ];
+        for (let i = 0; i < STEPS.length; i++) {
+            renderPipeline(i, logs);
+            if (!RM) await new Promise(res => setTimeout(res, 420));
+        }
+        renderPipeline(STEPS.length, logs);
+        state.result = r;
+        renderResults();
+        $('runBtn').disabled = false;
+    }
+
+    // ───────────────────────── events ─────────────────────────
+    $('scenarioBtns').addEventListener('click', e => { const b = e.target.closest('[data-sid]'); if (b) loadScenario(b.dataset.sid); });
+    $('docList').addEventListener('change', e => {
+        const id = e.target.dataset.doc; if (!id) return;
+        e.target.checked ? state.active.add(id) : state.active.delete(id);
+        renderDocList(); renderSettings(); markStale(); renderDocTabs();
+    });
+    $('targetSel').addEventListener('change', e => { state.target = e.target.value; state.doc = state.target; markStale(); renderDocTabs(); });
+    for (const id of ['w0', 'w1']) $(id).addEventListener('input', e => {
+        let v = Number(e.target.value);
+        if (id === 'w0') state.w0 = Math.min(v, state.w1 - 30); else state.w1 = Math.max(v, state.w0 + 30);
+        renderSettings(); markStale();
+    });
+    $('runBtn').addEventListener('click', run);
+    document.addEventListener('click', e => {
+        const t = e.target.closest('[data-tab]');
+        if (t) { state.doc = t.dataset.tab; renderDocTabs(); return; }
+        const o = e.target.closest('[data-open]');
+        if (o) { state.doc = o.dataset.open; renderDocTabs(o.dataset.claim); $('docView').closest('.card').scrollIntoView({ behavior: RM ? 'auto' : 'smooth', block: 'start' }); }
+    });
+
+    // ───────────────────────── self-check: each scenario must reach its designed verdict ─────────────────────────
+    (function selfTest() {
+        const all = s => new Set(s.docs.map(d => d.id));
+        const v = (k, target) => analyze(SCENARIOS[k], all(SCENARIOS[k]), T('13:30'), T('16:30'), target).code;
+        console.assert(v('A', 'sus') === 'TRUE', 'A: 피의자 알리바이는 사실이어야 함');
+        console.assert(v('B', 'sus') === 'FALSE', 'B: 피의자 알리바이는 거짓이어야 함');
+        console.assert(v('B', 'wit') === 'TRUE', 'B: 친구 진술은 사실이어야 함');
+        console.assert(v('C', 'sus2') === 'UNSURE', 'C: 피의자 2회 진술은 판단 보류여야 함');
+        console.assert(analyze(SCENARIOS.A, all(SCENARIOS.A), T('13:30'), T('16:30'), 'sus').pairs.every(p => p.rel === 'support'), 'A: 모순 0건이어야 함');
+    })();
+
+    loadScenario('A');
+    </script>
+</body>
+</html>
