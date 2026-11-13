@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Forensic DNA Origin Tracker (SNP & PCoA)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>@import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css'); body { font-family: 'Pretendard', sans-serif; }</style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col">
+    <nav class="bg-slate-900 border-b border-slate-800 px-4 py-2 text-xs"><a href="../index.html" class="inline-flex items-center gap-1.5 text-slate-300 hover:text-indigo-300"><i class="fa-solid fa-house" aria-hidden="true"></i> 시뮬레이터 홈</a></nav>
+    <div class="bg-amber-500 text-slate-950 px-4 py-1.5 text-center text-xs font-bold">
+        ⚠️ 본 시뮬레이터는 법생물학 SNP 패널 및 PCoA 군집 분석 이해를 돕기 위한 교육용 데모입니다.
+    </div>
+    <header class="bg-slate-900 border-b border-slate-800 px-6 py-4 flex flex-wrap justify-between items-center gap-4">
+        <div class="flex items-center gap-3">
+            <div class="p-2.5 bg-teal-600 rounded-lg"><i class="fa-solid fa-dna text-xl"></i></div>
+            <div>
+                <h1 class="text-lg font-bold">Forensic DNA Origin Tracker</h1>
+                <p class="text-xs text-slate-400">AIMs(Ancestry Informative Markers) SNP 패널 및 PCoA(주좌표분석) 기반 생물지리학적 기원 추적기</p>
+            </div>
+        </div>
+        <div class="flex gap-2">
+            <button onclick="preset('east_asia')" class="px-3 py-1.5 text-xs bg-teal-600/20 text-teal-300 border border-teal-500/40 rounded">동아시아 기원 시료</button>
+            <button onclick="preset('europe')" class="px-3 py-1.5 text-xs bg-blue-600/20 text-blue-300 border border-blue-500/40 rounded">유럽 기원 시료</button>
+            <button onclick="preset('se_asia')" class="px-3 py-1.5 text-xs bg-amber-600/20 text-amber-300 border border-amber-500/40 rounded">동남아시아 기원 시료</button>
+        </div>
+    </header>
+    <main class="flex-1 p-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
+        <section class="lg:col-span-4 bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-4">
+            <h2 class="font-bold text-sm text-teal-400 border-b border-slate-800 pb-2"><i class="fa-solid fa-sliders"></i> 표적 SNP 대립유전자 빈도 (Allele Frequency)</h2>
+            <div>
+                <div class="flex justify-between text-xs mb-1"><span>rs3827760 (EDAR - 동아시아 특이 마커)</span><span id="s1v" class="text-teal-400 font-bold">94%</span></div>
+                <input type="range" id="s1" min="0" max="100" value="94" oninput="calc()" class="w-full accent-teal-500">
+            </div>
+            <div>
+                <div class="flex justify-between text-xs mb-1"><span>rs1426654 (SLC24A5 - 유럽 특이 마커)</span><span id="s2v" class="text-blue-400 font-bold">5%</span></div>
+                <input type="range" id="s2" min="0" max="100" value="5" oninput="calc()" class="w-full accent-blue-500">
+            </div>
+            <div>
+                <div class="flex justify-between text-xs mb-1"><span>rs17822931 (ABCC11 - 동북아/동남아 분별)</span><span id="s3v" class="text-amber-400 font-bold">88%</span></div>
+                <input type="range" id="s3" min="0" max="100" value="88" oninput="calc()" class="w-full accent-amber-500">
+            </div>
+            <div>
+                <div class="flex justify-between text-xs mb-1"><span>rs16891982 (SLC45A2 - 코카시안 지표)</span><span id="s4v" class="text-indigo-400 font-bold">4%</span></div>
+                <input type="range" id="s4" min="0" max="100" value="4" oninput="calc()" class="w-full accent-indigo-500">
+            </div>
+        </section>
+        <section class="lg:col-span-8 flex flex-col gap-6">
+            <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 flex-1">
+                <h3 class="text-sm font-bold mb-3"><i class="fa-solid fa-braille text-teal-400"></i> PCoA (Principal Coordinates Analysis) 집단 군집 분포도</h3>
+                <div class="h-64"><canvas id="pcoaChart"></canvas></div>
+            </div>
+            <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 flex flex-col md:flex-row justify-between items-center gap-4">
+                <div>
+                    <div class="text-xs text-slate-400">최종 생물지리학적 기원(BGA) 추정 결과</div>
+                    <div class="text-xl font-extrabold text-teal-400" id="originTitle">동아시아 (East Asia - 한·중·일 권역)</div>
+                    <div class="text-xs text-slate-300 mt-1" id="originProb">집단 귀속 우도비(Likelihood Ratio) 확률: 99.1%</div>
+                </div>
+                <div class="bg-slate-950 border border-slate-800 p-3 rounded-lg text-xs text-slate-300 max-w-md">
+                    신원불상 변사체 또는 현장 유류 체액의 몽타주(표현형) 예측 및 용의자군 압축 수사의 핵심 근거로 활용됩니다.
+                </div>
+            </div>
+        </section>
+    </main>
+    <script>
+        let pcoaChart;
+        window.onload = () => {
+            const ctx = document.getElementById('pcoaChart').getContext('2d');
+            pcoaChart = new Chart(ctx, {
+                type: 'scatter',
+                data: {
+                    datasets: [
+                        { label: '동아시아 참조군', data: [{x:-7,y:5},{x:-8,y:6},{x:-6,y:4},{x:-7.5,y:5.5}], backgroundColor: '#14b8a6', pointRadius: 6 },
+                        { label: '유럽 참조군', data: [{x:8,y:6},{x:7,y:7},{x:9,y:5},{x:8.2,y:6.5}], backgroundColor: '#3b82f6', pointRadius: 6 },
+                        { label: '동남아시아 참조군', data: [{x:-2,y:-6},{x:-3,y:-5},{x:-1,y:-7},{x:-2.5,y:-6.2}], backgroundColor: '#f59e0b', pointRadius: 6 },
+                        { label: '★ 현장 증거 시료 (Query)', data: [{x:-7.2,y:5.2}], backgroundColor: '#f43f5e', borderColor: '#fff', borderWidth: 2, pointRadius: 10, pointStyle: 'star' }
+                    ]
+                },
+                options: { responsive: true, maintainAspectRatio: false, scales: { x: { min: -12, max: 12, grid: { color: '#1e293b' } }, y: { min: -10, max: 10, grid: { color: '#1e293b' } } } }
+            });
+            calc();
+        };
+        function preset(r) {
+            const map = { east_asia: [94, 5, 88, 4], europe: [4, 96, 12, 92], se_asia: [35, 15, 25, 10] }[r];
+            ['s1','s2','s3','s4'].forEach((id, i) => document.getElementById(id).value = map[i]);
+            calc();
+        }
+        function calc() {
+            const v = ['s1','s2','s3','s4'].map((id, i) => {
+                const val = +document.getElementById(id).value;
+                document.getElementById('s'+(i+1)+'v').innerText = val + '%';
+                return val;
+            });
+            const x = ((v[1] + v[3]) / 2 - v[0]) * 0.085;
+            const y = ((v[0] + v[1]) / 2 - (100 - v[2])) * 0.08;
+            pcoaChart.data.datasets[3].data = [{x, y}];
+            pcoaChart.update();
+            if (v[1] + v[3] > 120) {
+                document.getElementById('originTitle').innerText = '유럽 / 코카시안 (European Ancestry)';
+                document.getElementById('originProb').innerText = `집단 귀속 우도비 확률: ${Math.min(99.8, 75 + (v[1]+v[3])*0.12).toFixed(1)}%`;
+            } else if (v[0] > 60 && v[2] > 60) {
+                document.getElementById('originTitle').innerText = '동아시아 (East Asia - 한·중·일 권역)';
+                document.getElementById('originProb').innerText = `집단 귀속 우도비 확률: ${Math.min(99.7, 75 + (v[0]+v[2])*0.12).toFixed(1)}%`;
+            } else {
+                document.getElementById('originTitle').innerText = '동남아시아 (Southeast Asia 권역)';
+                document.getElementById('originProb').innerText = `집단 귀속 우도비 확률: 94.3%`;
+            }
+        }
+    </script>
+</body>
+</html>
