@@ -32,12 +32,6 @@
             --color-ring: #93C5FD;
         }
         body { font-family: 'Pretendard', sans-serif; background: var(--color-background); color: var(--color-foreground); }
-        .grid-bg {
-            background-image:
-                linear-gradient(to right, rgb(148 163 184 / 0.06) 1px, transparent 1px),
-                linear-gradient(to bottom, rgb(148 163 184 / 0.06) 1px, transparent 1px);
-            background-size: 48px 48px;
-        }
         .sim-card { background: var(--color-card); border-color: var(--color-border); transition: background-color 200ms ease, border-color 200ms ease, transform 200ms ease; }
         .sim-card:hover { background: var(--color-card-hover); border-color: var(--color-primary); transform: translateY(-2px); }
         .sim-card:focus-visible, .cta:focus-visible { outline: 2px solid var(--color-ring); outline-offset: 3px; }
@@ -69,11 +63,14 @@
     </header>
 
     <main class="flex-1">
-        <section class="grid-bg border-b" style="border-color: var(--color-border)">
-            <div class="mx-auto max-w-6xl px-6 py-16 sm:py-20">
+        <section class="relative overflow-hidden border-b" style="border-color: var(--color-border); background: #050B1F">
+            <img src="hero.webp" alt="" width="1672" height="941" fetchpriority="high" class="absolute inset-y-0 right-0 h-full w-full object-cover object-right opacity-40 md:w-[75%] md:opacity-100">
+            <!-- keeps hero text at 4.5:1+ over the illustration -->
+            <div class="absolute inset-0" style="background: linear-gradient(90deg, #050B1F 0%, #050B1F 35%, rgb(5 11 31 / 0.75) 55%, rgb(5 11 31 / 0) 80%)" aria-hidden="true"></div>
+            <div class="relative mx-auto max-w-6xl px-6 py-16 sm:py-24">
                 <p class="mb-4 text-sm font-semibold tracking-widest" style="color: var(--color-accent)">FORENSIC SCIENCE × AI</p>
-                <h1 class="max-w-3xl text-3xl font-bold leading-tight sm:text-5xl">과학수사의 핵심 분석 기법을<br class="hidden sm:inline"> 직접 조작하며 이해하는 시뮬레이터</h1>
-                <p class="mt-5 max-w-2xl text-base sm:text-lg" style="color: var(--color-muted-foreground)">법의독성학, 법유전학, 후성유전학, 환경 미생물 추적, 법령 RAG까지. 7종의 인터랙티브 시뮬레이터로 AI가 감정·추론하는 과정을 단계별로 살펴보세요.</p>
+                <h1 class="max-w-2xl text-3xl font-bold leading-tight sm:text-5xl">과학수사의 핵심 분석 기법을<br class="hidden sm:inline"> 직접 조작하며 이해하는 시뮬레이터</h1>
+                <p class="mt-5 max-w-xl text-base sm:text-lg" style="color: var(--color-muted-foreground)">법의독성학, 법유전학, 후성유전학, 환경 미생물 추적, 법령 RAG까지. 7종의 인터랙티브 시뮬레이터로 AI가 감정·추론하는 과정을 단계별로 살펴보세요.</p>
                 <div class="mt-8 flex flex-wrap items-center gap-6">
                     <a href="#simulators" class="cta inline-flex min-h-[44px] items-center gap-2 rounded-md px-5 font-semibold text-slate-950" style="background: var(--color-accent)">
                         시뮬레이터 둘러보기 <i class="fa-solid fa-arrow-down" aria-hidden="true"></i>
